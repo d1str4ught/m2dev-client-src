@@ -5,7 +5,7 @@
 
 bool PyTuple_GetWindow(PyObject* poArgs, int pos, UI::CWindow ** ppRetWindow)
 {
-	if (!PyTuple_GetPointer(poArgs, pos, ppRetWindow))
+	if (!PyTuple_GetPointer(poArgs, pos, &ppRetWindow))
 		return false;
 
 	return *ppRetWindow != nullptr;
