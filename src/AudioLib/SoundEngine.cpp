@@ -179,7 +179,7 @@ void SoundEngine::SaveVolume(bool isMinimized)
 	if (m_MasterVolume <= outOfFocusVolume)
 		outOfFocusVolume = m_MasterVolume;
 
-	m_MasterVolumeFadeTarget = isMinimized ? 0 : outOfFocusVolume;
+	m_MasterVolumeFadeTarget = isMinimized ? 0.0f : outOfFocusVolume;
 	m_MasterVolumeFadeRatePerFrame = -ratePerSecond / durationOnFullVolume;
 }
 
@@ -222,7 +222,7 @@ void SoundEngine::Update()
 	if (m_MasterVolumeFadeRatePerFrame)
 	{
 		float volume = ma_engine_get_volume(&m_Engine) + m_MasterVolumeFadeRatePerFrame;
-		if ((m_MasterVolumeFadeRatePerFrame > 0 && volume >= m_MasterVolumeFadeTarget) || (m_MasterVolumeFadeRatePerFrame < 0 && volume <= m_MasterVolumeFadeTarget))
+		if ((m_MasterVolumeFadeRatePerFrame > 0.0f && volume >= m_MasterVolumeFadeTarget) || (m_MasterVolumeFadeRatePerFrame < 0.0f && volume <= m_MasterVolumeFadeTarget))
 		{
 			volume = m_MasterVolumeFadeTarget;
 			m_MasterVolumeFadeRatePerFrame = 0.0f;

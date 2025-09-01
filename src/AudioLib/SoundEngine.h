@@ -87,10 +87,10 @@ private:
 	// One song at a time, but holding both current and previous for graceful fading
 	std::array<MaSoundInstance, 2> m_Music;
 	int m_CurrentMusicIndex{};
-	float m_MusicVolume{ 1.0 };
-	float m_SoundVolume{ 1.0 };
+	float m_MusicVolume{ 1.0f };
+	float m_SoundVolume{ 1.0f };
 
-	float m_MasterVolume{ 1.0 };
+	float m_MasterVolume{ 1.0f };
 	float m_MasterVolumeFadeTarget{};
 	float m_MasterVolumeFadeRatePerFrame{};
 };

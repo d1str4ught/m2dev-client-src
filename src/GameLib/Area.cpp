@@ -1296,6 +1296,7 @@ void CArea::TAmbienceInstance::UpdateOnceSound(float fxCenter, float fyCenter, f
 	{
 		playSoundInstance->Stop();
 		playSoundInstance = nullptr;
+		fNextPlayTime = 0.0f;
 	}
 }
 
@@ -1318,8 +1319,9 @@ void CArea::TAmbienceInstance::UpdateStepSound(float fxCenter, float fyCenter, f
 			fNextPlayTime += AmbienceData.fPlayInterval + frandom(0.0f, AmbienceData.fPlayIntervalVariation);
 		}
 	}
-	else
+	else if (playSoundInstance)
 	{
+		playSoundInstance->Stop();
 		playSoundInstance = nullptr;
 		fNextPlayTime = 0.0f;
 	}
@@ -1346,6 +1348,7 @@ void CArea::TAmbienceInstance::UpdateLoopSound(float fxCenter, float fyCenter, f
 	{
 		playSoundInstance->Stop();
 		playSoundInstance = nullptr;
+		fNextPlayTime = 0.0f;
 	}
 }
 
@@ -1397,5 +1400,7 @@ CArea::SAmbienceInstance::SAmbienceInstance()
 	fy = 0.0f;
 	fz = 0.0f;
 	dwRange = 0;
+	fMaxVolumeAreaPercentage = 0.0f;
+	playSoundInstance = nullptr;
 	fNextPlayTime = 0.0f;
 }
