@@ -1296,6 +1296,7 @@ void CArea::TAmbienceInstance::UpdateOnceSound(float fxCenter, float fyCenter, f
 	{
 		playSoundInstance->Stop();
 		playSoundInstance = nullptr;
+		fNextPlayTime = 0.0f;
 	}
 }
 
@@ -1346,6 +1347,7 @@ void CArea::TAmbienceInstance::UpdateLoopSound(float fxCenter, float fyCenter, f
 	{
 		playSoundInstance->Stop();
 		playSoundInstance = nullptr;
+		fNextPlayTime = 0.0f;
 	}
 }
 
