@@ -1318,8 +1318,9 @@ void CArea::TAmbienceInstance::UpdateStepSound(float fxCenter, float fyCenter, f
 			fNextPlayTime += AmbienceData.fPlayInterval + frandom(0.0f, AmbienceData.fPlayIntervalVariation);
 		}
 	}
-	else
+	else if (playSoundInstance)
 	{
+		playSoundInstance->Stop();
 		playSoundInstance = nullptr;
 		fNextPlayTime = 0.0f;
 	}
