@@ -4,7 +4,7 @@ add_subdirectory(mio)
 
 ## zstd is a bit tricky
 set(ZSTD_BUILD_SHARED OFF CACHE BOOL "BUILD SHARED LIBRARIES" FORCE)
-add_subdirectory(zstd-1.5.7/build/cmake zstd)
+add_subdirectory(zstd/build/cmake zstd)
 include_directories("zstd/lib")
 
 if (WIN32)
