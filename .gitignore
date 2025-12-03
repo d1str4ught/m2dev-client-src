@@ -1,1 +1,49 @@
-﻿/build/
+﻿# -------------------------------------------------------------------
+# 1. BUILD ARTIFACTS
+# -------------------------------------------------------------------
+/build/
+
+# -------------------------------------------------------------------
+# 2. TEMPORARY SOURCE CACHES (Used by depinit.py for extraction)
+# -------------------------------------------------------------------
+.tmp_*
+
+# -------------------------------------------------------------------
+# 3. AGGRESSIVE VENDOR/ IGNORE (This is what you need)
+# Ignore everything in the vendor directory by default.
+# -------------------------------------------------------------------
+/vendor/*
+
+# -------------------------------------------------------------------
+# 4. ESSENTIAL RE-INCLUSIONS (Submodules & Custom Files)
+# These folders/files MUST be tracked by Git.
+#
+# NOTE: To re-include a file inside an aggressively ignored folder,
+# you must re-include ALL parent folders first.
+# -------------------------------------------------------------------
+
+# Re-include Submodule Folders (Git automatically handles the contents)
+!/vendor/cryptopp/
+!/vendor/cryptopp/src/
+!/vendor/mio/
+!/vendor/zstd/
+
+# Re-include LZO (Extracted files must be tracked)
+# Since lzo is now an extracted dependency, its contents MUST be tracked.
+!/vendor/lzo-2.10/
+!/vendor/lzo-2.10/**
+
+# Re-include DirectXMath (Extracted files must be tracked)
+!/vendor/DirectXMath/
+!/vendor/DirectXMath/**
+
+# Re-include Custom CMake Files (The specific files you want tracked)
+!/vendor/CMakeLists.txt
+!/vendor/cryptopp/src/CMakeLists.txt
+!/vendor/lzo-2.10/CMakeLists.txt
+
+# -------------------------------------------------------------------
+# 5. EXTERN/INCLUDE FILES (Extracted files must be tracked)
+# Since depinit.py copies these, they must NOT be ignored.
+# The parent folder /extern/include/ is NOT aggressively ignored, so no ! is needed.
+# -------------------------------------------------------------------

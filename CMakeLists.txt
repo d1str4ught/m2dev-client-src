@@ -58,6 +58,42 @@ add_definitions(-DPy_NO_ENABLE_SHARED)
 add_compile_definitions("$<$<CONFIG:Debug>:DEBUG>")
 add_compile_definitions("$<$<CONFIG:RelWithDebInfo>:_DISTRIBUTE>")
 add_compile_definitions("$<$<CONFIG:Release>:_DISTRIBUTE>")
+# ====================================================================
+# [START] Centralized Submodule Initialization (Client)
+# Ensure dependencies are available before compilation or linking starts.
+# ====================================================================
+
+# Ensure this is a Git repository before proceeding
+if (EXISTS "${CMAKE_SOURCE_DIR}/.git")
+	# 1. Locate the Python interpreter (Required to run depinit_client.py)
+	find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
+	# 2. Execute the dependency initialization script
+	message(STATUS "Running client dependency initialization script (depinit.py)...")
+
+	execute_process(
+		COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/depinit.py"
+		# Ensure execution happens in the project root for Git commands
+		WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" 
+		RESULT_VARIABLE DEP_INIT_RESULT
+		OUTPUT_VARIABLE DEP_INIT_OUTPUT
+		ERROR_VARIABLE DEP_INIT_OUTPUT
+	)
+
+	# 3. Print the script output
+	message(STATUS "${DEP_INIT_OUTPUT}")
+
+	# 4. Check the return code and halt if the script failed
+	if (DEP_INIT_RESULT)
+		message(FATAL_ERROR "Client dependency initialization script failed! See messages above.")
+	endif()
+
+	message(STATUS "All client dependencies are ready.")
+endif()
+
+# ====================================================================
+# [END] Centralized Submodule Initialization (Client)
+# ====================================================================
 
 include_directories("src")
 include_directories("extern/include")
