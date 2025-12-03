@@ -1,3 +1,6 @@
+set(BUILD_SHARED OFF CACHE BOOL "Disable building Crypto++ shared library" FORCE)
+set(BUILD_STATIC ON CACHE BOOL "Enable building Crypto++ static library" FORCE)
+
 add_subdirectory(cryptopp)
 add_subdirectory(lzo-2.10)
 add_subdirectory(mio)

@@ -24,7 +24,6 @@
 
 # Re-include Submodule Folders (Git automatically handles the contents)
 !/vendor/cryptopp/
-!/vendor/cryptopp/src/
 !/vendor/mio/
 !/vendor/zstd/
 
@@ -39,7 +38,7 @@
 
 # Re-include Custom CMake Files (The specific files you want tracked)
 !/vendor/CMakeLists.txt
-!/vendor/cryptopp/src/CMakeLists.txt
+!/vendor/cryptopp/CMakeLists.txt
 !/vendor/lzo-2.10/CMakeLists.txt
 
 # -------------------------------------------------------------------
