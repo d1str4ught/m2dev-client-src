@@ -430,7 +430,7 @@ static unsigned FSE_isError(size_t code) { return (code > (size_t)(-FSE_ERROR_ma
 
 static short FSE_abs(short a)
 {
-    return a<0? (short)-a : a;
+    return a<0? -a : a;
 }
 
 
@@ -1823,12 +1823,11 @@ static size_t ZSTD_decompressSequences(
     BYTE* const ostart = (BYTE* const)dst;
     BYTE* op = ostart;
     BYTE* const oend = ostart + maxDstSize;
-    size_t errorCode = 0;
-    size_t dumpsLength = 0;
+    size_t errorCode, dumpsLength;
     const BYTE* litPtr = litStart;
     const BYTE* const litEnd = litStart + litSize;
-    int nbSeq = 0;
-    const BYTE* dumps = NULL;
+    int nbSeq;
+    const BYTE* dumps;
     U32* DTableLL = dctx->LLTable;
     U32* DTableML = dctx->MLTable;
     U32* DTableOffb = dctx->OffTable;
@@ -1916,7 +1915,7 @@ size_t ZSTDv01_decompressDCtx(void* ctx, void* dst, size_t maxDstSize, const voi
     size_t remainingSize = srcSize;
     U32 magicNumber;
     size_t errorCode=0;
-    blockProperties_t blockProperties = { 0 };
+    blockProperties_t blockProperties;
 
     /* Frame Header */
     if (srcSize < ZSTD_frameHeaderSize+ZSTD_blockHeaderSize) return ERROR(srcSize_wrong);

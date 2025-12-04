@@ -206,10 +206,7 @@ endif
 endif
 CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 
-# Include install_oses.mk from the same directory
-include $(dir $(lastword $(MAKEFILE_LIST)))/install_oses.mk
-LN ?= ln
-CP ?= cp -f
+UNAME := $(shell sh -c 'MSYSTEM="MSYS" uname')
 
 ifndef BUILD_DIR
 ifeq ($(UNAME), Darwin)

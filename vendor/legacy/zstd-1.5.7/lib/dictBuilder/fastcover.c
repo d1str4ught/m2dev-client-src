@@ -49,30 +49,38 @@
 
 /*-*************************************
 *  Console display
-*
-* Captures the `displayLevel` variable in the local scope.
 ***************************************/
+#ifndef LOCALDISPLAYLEVEL
+static int g_displayLevel = 0;
+#endif
 #undef  DISPLAY
 #define DISPLAY(...)                                                           \
   {                                                                            \
     fprintf(stderr, __VA_ARGS__);                                              \
     fflush(stderr);                                                            \
   }
-#undef  DISPLAYLEVEL
-#define DISPLAYLEVEL(l, ...)                                                   \
+#undef  LOCALDISPLAYLEVEL
+#define LOCALDISPLAYLEVEL(displayLevel, l, ...)                                \
   if (displayLevel >= l) {                                                     \
     DISPLAY(__VA_ARGS__);                                                      \
   } /* 0 : no display;   1: errors;   2: default;  3: details;  4: debug */
+#undef  DISPLAYLEVEL
+#define DISPLAYLEVEL(l, ...) LOCALDISPLAYLEVEL(g_displayLevel, l, __VA_ARGS__)
 
-#undef  DISPLAYUPDATE
-#define DISPLAYUPDATE(lastUpdateTime, l, ...)                                  \
+#ifndef LOCALDISPLAYUPDATE
+static const clock_t g_refreshRate = CLOCKS_PER_SEC * 15 / 100;
+static clock_t g_time = 0;
+#endif
+#undef  LOCALDISPLAYUPDATE
+#define LOCALDISPLAYUPDATE(displayLevel, l, ...)                               \
   if (displayLevel >= l) {                                                     \
-    const clock_t refreshRate = CLOCKS_PER_SEC * 15 / 100;                     \
-    if ((clock() - lastUpdateTime > refreshRate) || (displayLevel >= 4)) {     \
-      lastUpdateTime = clock();                                                \
+    if ((clock() - g_time > g_refreshRate) || (displayLevel >= 4)) {             \
+      g_time = clock();                                                        \
       DISPLAY(__VA_ARGS__);                                                    \
     }                                                                          \
   }
+#undef  DISPLAYUPDATE
+#define DISPLAYUPDATE(l, ...) LOCALDISPLAYUPDATE(g_displayLevel, l, __VA_ARGS__)
 
 
 /*-*************************************
@@ -128,7 +136,6 @@ typedef struct {
   unsigned d;
   unsigned f;
   FASTCOVER_accel_t accelParams;
-  int displayLevel;
 } FASTCOVER_ctx_t;
 
 
@@ -307,8 +314,7 @@ FASTCOVER_ctx_init(FASTCOVER_ctx_t* ctx,
                    const void* samplesBuffer,
                    const size_t* samplesSizes, unsigned nbSamples,
                    unsigned d, double splitPoint, unsigned f,
-                   FASTCOVER_accel_t accelParams,
-                   int displayLevel)
+                   FASTCOVER_accel_t accelParams)
 {
     const BYTE* const samples = (const BYTE*)samplesBuffer;
     const size_t totalSamplesSize = COVER_sum(samplesSizes, nbSamples);
@@ -317,7 +323,6 @@ FASTCOVER_ctx_init(FASTCOVER_ctx_t* ctx,
     const unsigned nbTestSamples = splitPoint < 1.0 ? nbSamples - nbTrainSamples : nbSamples;
     const size_t trainingSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes, nbTrainSamples) : totalSamplesSize;
     const size_t testSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes + nbTrainSamples, nbTestSamples) : totalSamplesSize;
-    ctx->displayLevel = displayLevel;
 
     /* Checks */
     if (totalSamplesSize < MAX(d, sizeof(U64)) ||
@@ -404,9 +409,7 @@ FASTCOVER_buildDictionary(const FASTCOVER_ctx_t* ctx,
   const COVER_epoch_info_t epochs = COVER_computeEpochs(
       (U32)dictBufferCapacity, (U32)ctx->nbDmers, parameters.k, 1);
   const size_t maxZeroScoreRun = 10;
-  const int displayLevel = ctx->displayLevel;
   size_t zeroScoreRun = 0;
-  clock_t lastUpdateTime = 0;
   size_t epoch;
   DISPLAYLEVEL(2, "Breaking content into %u epochs of size %u\n",
                 (U32)epochs.num, (U32)epochs.size);
@@ -444,7 +447,6 @@ FASTCOVER_buildDictionary(const FASTCOVER_ctx_t* ctx,
     tail -= segmentSize;
     memcpy(dict + tail, ctx->samples + segment.begin, segmentSize);
     DISPLAYUPDATE(
-        lastUpdateTime,
         2, "\r%u%%       ",
         (unsigned)(((dictBufferCapacity - tail) * 100) / dictBufferCapacity));
   }
@@ -482,7 +484,6 @@ static void FASTCOVER_tryParameters(void* opaque)
   BYTE *const dict = (BYTE*)malloc(dictBufferCapacity);
   COVER_dictSelection_t selection = COVER_dictSelectionError(ERROR(GENERIC));
   U32* freqs = (U32*) malloc(((U64)1 << ctx->f) * sizeof(U32));
-  const int displayLevel = ctx->displayLevel;
   if (!segmentFreqs || !dict || !freqs) {
     DISPLAYLEVEL(1, "Failed to allocate buffers: out of memory\n");
     goto _cleanup;
@@ -554,7 +555,8 @@ ZDICT_trainFromBuffer_fastCover(void* dictBuffer, size_t dictBufferCapacity,
     FASTCOVER_ctx_t ctx;
     ZDICT_cover_params_t coverParams;
     FASTCOVER_accel_t accelParams;
-    const int displayLevel = (int)parameters.zParams.notificationLevel;
+    /* Initialize global data */
+    g_displayLevel = (int)parameters.zParams.notificationLevel;
     /* Assign splitPoint and f if not provided */
     parameters.splitPoint = 1.0;
     parameters.f = parameters.f == 0 ? DEFAULT_F : parameters.f;
@@ -583,13 +585,13 @@ ZDICT_trainFromBuffer_fastCover(void* dictBuffer, size_t dictBufferCapacity,
     {
       size_t const initVal = FASTCOVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples,
                             coverParams.d, parameters.splitPoint, parameters.f,
-                            accelParams, displayLevel);
+                            accelParams);
       if (ZSTD_isError(initVal)) {
         DISPLAYLEVEL(1, "Failed to initialize context\n");
         return initVal;
       }
     }
-    COVER_warnOnSmallCorpus(dictBufferCapacity, ctx.nbDmers, displayLevel);
+    COVER_warnOnSmallCorpus(dictBufferCapacity, ctx.nbDmers, g_displayLevel);
     /* Build the dictionary */
     DISPLAYLEVEL(2, "Building dictionary\n");
     {
@@ -644,26 +646,25 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
     COVER_best_t best;
     POOL_ctx *pool = NULL;
     int warned = 0;
-    clock_t lastUpdateTime = 0;
     /* Checks */
     if (splitPoint <= 0 || splitPoint > 1) {
-      DISPLAYLEVEL(1, "Incorrect splitPoint\n");
+      LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect splitPoint\n");
       return ERROR(parameter_outOfBound);
     }
     if (accel == 0 || accel > FASTCOVER_MAX_ACCEL) {
-      DISPLAYLEVEL(1, "Incorrect accel\n");
+      LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect accel\n");
       return ERROR(parameter_outOfBound);
     }
     if (kMinK < kMaxD || kMaxK < kMinK) {
-      DISPLAYLEVEL(1, "Incorrect k\n");
+      LOCALDISPLAYLEVEL(displayLevel, 1, "Incorrect k\n");
       return ERROR(parameter_outOfBound);
     }
     if (nbSamples == 0) {
-      DISPLAYLEVEL(1, "FASTCOVER must have at least one input file\n");
+      LOCALDISPLAYLEVEL(displayLevel, 1, "FASTCOVER must have at least one input file\n");
       return ERROR(srcSize_wrong);
     }
     if (dictBufferCapacity < ZDICT_DICTSIZE_MIN) {
-      DISPLAYLEVEL(1, "dictBufferCapacity must be at least %u\n",
+      LOCALDISPLAYLEVEL(displayLevel, 1, "dictBufferCapacity must be at least %u\n",
                    ZDICT_DICTSIZE_MIN);
       return ERROR(dstSize_tooSmall);
     }
@@ -678,18 +679,19 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
     memset(&coverParams, 0 , sizeof(coverParams));
     FASTCOVER_convertToCoverParams(*parameters, &coverParams);
     accelParams = FASTCOVER_defaultAccelParameters[accel];
+    /* Turn down global display level to clean up display at level 2 and below */
+    g_displayLevel = displayLevel == 0 ? 0 : displayLevel - 1;
     /* Loop through d first because each new value needs a new context */
-    DISPLAYLEVEL(2, "Trying %u different sets of parameters\n", kIterations);
+    LOCALDISPLAYLEVEL(displayLevel, 2, "Trying %u different sets of parameters\n",
+                      kIterations);
     for (d = kMinD; d <= kMaxD; d += 2) {
       /* Initialize the context for this value of d */
       FASTCOVER_ctx_t ctx;
-      DISPLAYLEVEL(3, "d=%u\n", d);
+      LOCALDISPLAYLEVEL(displayLevel, 3, "d=%u\n", d);
       {
-        /* Turn down global display level to clean up display at level 2 and below */
-        const int childDisplayLevel = displayLevel == 0 ? 0 : displayLevel - 1;
-        size_t const initVal = FASTCOVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples, d, splitPoint, f, accelParams, childDisplayLevel);
+        size_t const initVal = FASTCOVER_ctx_init(&ctx, samplesBuffer, samplesSizes, nbSamples, d, splitPoint, f, accelParams);
         if (ZSTD_isError(initVal)) {
-          DISPLAYLEVEL(1, "Failed to initialize context\n");
+          LOCALDISPLAYLEVEL(displayLevel, 1, "Failed to initialize context\n");
           COVER_best_destroy(&best);
           POOL_free(pool);
           return initVal;
@@ -704,9 +706,9 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
         /* Prepare the arguments */
         FASTCOVER_tryParameters_data_t *data = (FASTCOVER_tryParameters_data_t *)malloc(
             sizeof(FASTCOVER_tryParameters_data_t));
-        DISPLAYLEVEL(3, "k=%u\n", k);
+        LOCALDISPLAYLEVEL(displayLevel, 3, "k=%u\n", k);
         if (!data) {
-          DISPLAYLEVEL(1, "Failed to allocate parameters\n");
+          LOCALDISPLAYLEVEL(displayLevel, 1, "Failed to allocate parameters\n");
           COVER_best_destroy(&best);
           FASTCOVER_ctx_destroy(&ctx);
           POOL_free(pool);
@@ -721,7 +723,7 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
         data->parameters.splitPoint = splitPoint;
         data->parameters.steps = kSteps;
         data->parameters.shrinkDict = shrinkDict;
-        data->parameters.zParams.notificationLevel = (unsigned)ctx.displayLevel;
+        data->parameters.zParams.notificationLevel = (unsigned)g_displayLevel;
         /* Check the parameters */
         if (!FASTCOVER_checkParameters(data->parameters, dictBufferCapacity,
                                        data->ctx->f, accel)) {
@@ -737,15 +739,14 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
           FASTCOVER_tryParameters(data);
         }
         /* Print status */
-        DISPLAYUPDATE(lastUpdateTime,
-                      2, "\r%u%%       ",
-                      (unsigned)((iteration * 100) / kIterations));
+        LOCALDISPLAYUPDATE(displayLevel, 2, "\r%u%%       ",
+                           (unsigned)((iteration * 100) / kIterations));
         ++iteration;
       }
       COVER_best_wait(&best);
       FASTCOVER_ctx_destroy(&ctx);
     }
-    DISPLAYLEVEL(2, "\r%79s\r", "");
+    LOCALDISPLAYLEVEL(displayLevel, 2, "\r%79s\r", "");
     /* Fill the output buffer and parameters with output of the best parameters */
     {
       const size_t dictSize = best.dictSize;

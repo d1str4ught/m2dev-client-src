@@ -1,7 +1,5 @@
+include(CheckCXXCompilerFlag)
 include(CheckCCompilerFlag)
-if(CMAKE_CXX_COMPILER)
-    include(CheckCXXCompilerFlag)
-endif()
 
 if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.18)
     set(ZSTD_HAVE_CHECK_LINKER_FLAG true)
@@ -23,7 +21,7 @@ function(EnableCompilerFlag _flag _C _CXX _LD)
             set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${_flag}" PARENT_SCOPE)
         endif ()
     endif ()
-    if (_CXX AND CMAKE_CXX_COMPILER)
+    if (_CXX)
         CHECK_CXX_COMPILER_FLAG(${_flag} CXX_FLAG_${varname})
         if (CXX_FLAG_${varname})
             set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${_flag}" PARENT_SCOPE)
@@ -51,7 +49,7 @@ function(EnableCompilerFlag _flag _C _CXX _LD)
     endif ()
 endfunction()
 
-macro(ADD_ZSTD_COMPILATION_FLAGS _C _CXX _LD)
+macro(ADD_ZSTD_COMPILATION_FLAGS)
     # We set ZSTD_HAS_NOEXECSTACK if we are certain we've set all the required
     # compiler flags to mark the stack as non-executable.
     set(ZSTD_HAS_NOEXECSTACK false)
@@ -65,26 +63,26 @@ macro(ADD_ZSTD_COMPILATION_FLAGS _C _CXX _LD)
         # EnableCompilerFlag("-std=c99" true false)   # Set C compilation to c99 standard
         if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND MSVC)
             # clang-cl normally maps -Wall to -Weverything.
-            EnableCompilerFlag("/clang:-Wall" _C _CXX false)
+            EnableCompilerFlag("/clang:-Wall" true true false)
         else ()
-            EnableCompilerFlag("-Wall" _C _CXX false)
+            EnableCompilerFlag("-Wall" true true false)
         endif ()
-        EnableCompilerFlag("-Wextra" _C _CXX false)
-        EnableCompilerFlag("-Wundef" _C _CXX false)
-        EnableCompilerFlag("-Wshadow" _C _CXX false)
-        EnableCompilerFlag("-Wcast-align" _C _CXX false)
-        EnableCompilerFlag("-Wcast-qual" _C _CXX false)
-        EnableCompilerFlag("-Wstrict-prototypes" _C false false)
+        EnableCompilerFlag("-Wextra" true true false)
+        EnableCompilerFlag("-Wundef" true true false)
+        EnableCompilerFlag("-Wshadow" true true false)
+        EnableCompilerFlag("-Wcast-align" true true false)
+        EnableCompilerFlag("-Wcast-qual" true true false)
+        EnableCompilerFlag("-Wstrict-prototypes" true false false)
         # Enable asserts in Debug mode
         if (CMAKE_BUILD_TYPE MATCHES "Debug")
-            EnableCompilerFlag("-DDEBUGLEVEL=1" _C _CXX false)
+            EnableCompilerFlag("-DDEBUGLEVEL=1" true true false)
         endif ()
         # Add noexecstack flags
         # LDFLAGS
-        EnableCompilerFlag("-Wl,-z,noexecstack" false false _LD)
+        EnableCompilerFlag("-Wl,-z,noexecstack" false false true)
         # CFLAGS & CXXFLAGS
-        EnableCompilerFlag("-Qunused-arguments" _C _CXX false)
-        EnableCompilerFlag("-Wa,--noexecstack" _C _CXX false)
+        EnableCompilerFlag("-Qunused-arguments" true true false)
+        EnableCompilerFlag("-Wa,--noexecstack" true true false)
         # NOTE: Using 3 nested ifs because the variables are sometimes
         # empty if the condition is false, and sometimes equal to false.
         # This implicitly converts them to truthy values. There may be
@@ -101,15 +99,15 @@ macro(ADD_ZSTD_COMPILATION_FLAGS _C _CXX _LD)
 
         set(ACTIVATE_MULTITHREADED_COMPILATION "ON" CACHE BOOL "activate multi-threaded compilation (/MP flag)")
         if (CMAKE_GENERATOR MATCHES "Visual Studio" AND ACTIVATE_MULTITHREADED_COMPILATION)
-            EnableCompilerFlag("/MP" _C _CXX false)
+            EnableCompilerFlag("/MP" true true false)
         endif ()
 
         # UNICODE SUPPORT
-        EnableCompilerFlag("/D_UNICODE" _C _CXX false)
-        EnableCompilerFlag("/DUNICODE" _C _CXX false)
+        EnableCompilerFlag("/D_UNICODE" true true false)
+        EnableCompilerFlag("/DUNICODE" true true false)
         # Enable asserts in Debug mode
         if (CMAKE_BUILD_TYPE MATCHES "Debug")
-            EnableCompilerFlag("/DDEBUGLEVEL=1" _C _CXX false)
+            EnableCompilerFlag("/DDEBUGLEVEL=1" true true false)
         endif ()
     endif ()
 

@@ -113,11 +113,7 @@ the last one takes effect.
     Because the compressor's behavior highly depends on the content to compress, there's no guarantee of a smooth progression from one level to another.
 * `--ultra`:
     unlocks high compression levels 20+ (maximum 22), using a lot more memory.
-    Decompression will also need more memory when using these levels.
-* `--max`:
-    set advanced parameters to reach maximum compression.
-    warning: this setting is very slow and uses a lot of resources.
-    It's inappropriate for 32-bit mode and therefore disabled in this mode.
+    Note that decompression will also require more memory when using these levels.
 * `--fast[=#]`:
     switch to ultra-fast compression levels.
     If `=#` is not present, it defaults to `1`.
@@ -126,7 +122,7 @@ the last one takes effect.
     This setting overwrites compression level if one was set previously.
     Similarly, if a compression level is set after `--fast`, it overrides it.
 * `-T#`, `--threads=#`:
-    Compress using `#` working threads (default: between 1 and 4 depending on physical CPU cores; see `ZSTD_NBTHREADS` below).
+    Compress using `#` working threads (default: 1).
     If `#` is 0, attempt to detect and use the number of physical CPU cores.
     In all cases, the nb of threads is capped to `ZSTDMT_NBWORKERS_MAX`,
     which is either 64 in 32-bit mode, or 256 for 64-bit environments.
@@ -165,6 +161,10 @@ the last one takes effect.
 
     Note: If `windowLog` is set to larger than 27, `--long=windowLog` or
     `--memory=windowSize` needs to be passed to the decompressor.
+* `--max`:
+    set advanced parameters to maximum compression.
+    warning: this setting is very slow and uses a lot of resources.
+    It's inappropriate for 32-bit mode and therefore disabled in this mode.
 * `-D DICT`:
     use `DICT` as Dictionary to compress or decompress FILE(s)
 * `--patch-from FILE`:
@@ -503,12 +503,12 @@ similar to predefined level 19 for files bigger than 256 KB:
 
 `--zstd`=wlog=23,clog=23,hlog=22,slog=6,mml=3,tlen=48,strat=6
 
-### --jobsize=#:
+### -B#:
 Specify the size of each compression job.
-This parameter is only meaningful when multi-threading is enabled.
-Each compression job is run in parallel, so this value can indirectly impact the nb of active threads.
+This parameter is only available when multi-threading is enabled.
+Each compression job is run in parallel, so this value indirectly impacts the nb of active threads.
 Default job size varies depending on compression level (generally  `4 * windowSize`).
-`--jobsize=#` makes it possible to manually select a custom size.
+`-B#` makes it possible to manually select a custom size.
 Note that job size must respect a minimum value which is enforced transparently.
 This minimum is either 512 KB, or `overlapSize`, whichever is largest.
 Different job sizes will lead to non-identical compressed frames.
@@ -554,8 +554,8 @@ Compression of small files similar to the sample set will be greatly improved.
     Use `#` compression level during training (optional).
     Will generate statistics more tuned for selected compression level,
     resulting in a _small_ compression ratio improvement for this level.
-* `--split=#`:
-    Split input files into independent chunks of size # (default: no split)
+* `-B#`:
+    Split input files into blocks of size # (default: no split)
 * `-M#`, `--memory=#`:
     Limit the amount of sample data loaded for training (default: 2 GB).
     Note that the default (2 GB) is also the maximum.
@@ -683,8 +683,8 @@ Benchmarking will employ `max(1, min(4, nbCores/4))` worker threads by default i
     benchmark decompression speed only (requires providing a zstd-compressed content)
 * `-i#`:
     minimum evaluation time, in seconds (default: 3s), benchmark mode only
-* `--split=#`:
-    split input file(s) into independent chunks of size # (default: no chunking)
+* `-B#`, `--block-size=#`:
+    cut file(s) into independent chunks of size # (default: no chunking)
 * `-S`:
     output one benchmark result per input file (default: consolidated result)
 * `-D dictionary`

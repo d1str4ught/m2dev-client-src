@@ -10,7 +10,6 @@
 
 #include <cstdio>
 #include <mutex>
-#include <chrono>
 
 namespace pzstd {
 

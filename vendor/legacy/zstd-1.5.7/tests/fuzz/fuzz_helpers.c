@@ -31,11 +31,12 @@ void* FUZZ_malloc_rand(size_t size, FUZZ_dataProducer_t *producer)
         return mem;
     } else {
         uintptr_t ptr = 0;
-        /* Return junk pointer 50% of the time */
+        /* Add +- 1M 50% of the time */
         if (FUZZ_dataProducer_uint32Range(producer, 0, 1))
-            ptr += FUZZ_dataProducer_int32Range(producer, -1000000, 1000000);
+            FUZZ_dataProducer_int32Range(producer, -1000000, 1000000);
         return (void*)ptr;
     }
+
 }
 
 int FUZZ_memcmp(void const* lhs, void const* rhs, size_t size)

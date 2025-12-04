@@ -7,7 +7,7 @@
 # in the COPYING file in the root directory of this source tree).
 # ################################################################
 
-project(libzstd C) # ASM language is conditionally enabled where supported
+project(libzstd C ASM)
 
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 option(ZSTD_BUILD_STATIC "BUILD STATIC LIBRARIES" ON)
@@ -40,7 +40,6 @@ if (MSVC)
     add_compile_options(-DZSTD_DISABLE_ASM)
 else ()
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "amd64.*|AMD64.*|x86_64.*|X86_64.*" AND ${ZSTD_HAS_NOEXECSTACK})
-        enable_language(ASM)
         set(DecompressSources ${DecompressSources} ${LIBRARY_DIR}/decompress/huf_decompress_amd64.S)
     else()
         add_compile_options(-DZSTD_DISABLE_ASM)
@@ -98,11 +97,9 @@ if (ZSTD_LEGACY_SUPPORT)
             ${LIBRARY_LEGACY_DIR}/zstd_v07.h)
 endif ()
 
-if (MSVC AND NOT (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
+if (MSVC)
     set(MSVC_RESOURCE_DIR ${ZSTD_SOURCE_DIR}/build/VS2010/libzstd-dll)
     set(PlatformDependResources ${MSVC_RESOURCE_DIR}/libzstd-dll.rc)
-else()
-    set(PlatformDependResources)
 endif ()
 
 # Explicitly set the language to C for all files, including ASM files.
@@ -115,7 +112,7 @@ endif()
 
 macro (add_definition target var)
     if (NOT ("${${var}}" STREQUAL ""))
-        target_compile_definitions(${target} PUBLIC "${var}=__attribute__((visibility(\"${${var}}\")))")
+        set_property(TARGET ${target} APPEND PROPERTY COMPILE_DEFINITIONS "${var}=__attribute__((visibility(\"${${var}}\")))")
     endif ()
 endmacro ()
 
@@ -129,7 +126,7 @@ if (ZSTD_BUILD_SHARED)
     target_include_directories(libzstd_shared INTERFACE $<BUILD_INTERFACE:${PUBLIC_INCLUDE_DIRS}>)
     list(APPEND library_targets libzstd_shared)
     if (ZSTD_MULTITHREAD_SUPPORT)
-        target_compile_definitions(libzstd_shared PUBLIC ZSTD_MULTITHREAD)
+        set_property(TARGET libzstd_shared APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_MULTITHREAD")
         if (UNIX)
             target_link_libraries(libzstd_shared ${THREADS_LIBS})
         endif ()
@@ -143,7 +140,7 @@ if (ZSTD_BUILD_STATIC)
     target_include_directories(libzstd_static INTERFACE $<BUILD_INTERFACE:${PUBLIC_INCLUDE_DIRS}>)
     list(APPEND library_targets libzstd_static)
     if (ZSTD_MULTITHREAD_SUPPORT)
-        target_compile_definitions(libzstd_static PUBLIC ZSTD_MULTITHREAD)
+        set_property(TARGET libzstd_static APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_MULTITHREAD")
         if (UNIX)
             target_link_libraries(libzstd_static ${THREADS_LIBS})
         endif ()
@@ -210,7 +207,7 @@ if (ZSTD_BUILD_SHARED)
             OUTPUT_NAME zstd
             VERSION ${ZSTD_FULL_VERSION}
             SOVERSION ${zstd_VERSION_MAJOR})
-
+            
     if (ZSTD_FRAMEWORK)
         set_target_properties(
                 libzstd_shared

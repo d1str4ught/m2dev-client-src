@@ -70,38 +70,37 @@ int main(int argc, const char** argv)
     char* buffer = (char*)malloc(bufferSize);
     void* out = malloc(outSize);
     void* roundtrip = malloc(dataSize);
-    int _exit_code = 1;
     (void)argc;
     (void)argv;
 
     if (!buffer || !out || !roundtrip || !cctx || !dctx) {
         fprintf(stderr, "Allocation failure\n");
-        goto cleanup;
+        return 1;
     }
 
     if (ZSTD_isError(ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowLog, 31)))
-        goto cleanup;
+        return 1;
     if (ZSTD_isError(ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 1)))
-        goto cleanup;
+        return 1;
     if (ZSTD_isError(ZSTD_CCtx_setParameter(cctx, ZSTD_c_overlapLog, 9)))
-        goto cleanup;
+        return 1;
     if (ZSTD_isError(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1)))
-        goto cleanup;
+        return 1;
     if (ZSTD_isError(ZSTD_CCtx_setParameter(cctx, ZSTD_c_strategy, ZSTD_btopt)))
-        goto cleanup;
+        return 1;
     if (ZSTD_isError(ZSTD_CCtx_setParameter(cctx, ZSTD_c_targetLength, 7)))
-        goto cleanup;
+        return 1;
     if (ZSTD_isError(ZSTD_CCtx_setParameter(cctx, ZSTD_c_minMatch, 7)))
-        goto cleanup;
+        return 1;
     if (ZSTD_isError(ZSTD_CCtx_setParameter(cctx, ZSTD_c_searchLog, 1)))
-        goto cleanup;
+        return 1;
     if (ZSTD_isError(ZSTD_CCtx_setParameter(cctx, ZSTD_c_hashLog, 10)))
-        goto cleanup;
+        return 1;
     if (ZSTD_isError(ZSTD_CCtx_setParameter(cctx, ZSTD_c_chainLog, 10)))
-        goto cleanup;
+        return 1;
 
     if (ZSTD_isError(ZSTD_DCtx_setParameter(dctx, ZSTD_d_windowLogMax, 31)))
-        goto cleanup;
+        return 1;
 
     RDG_genBuffer(buffer, bufferSize, 1.0, 0.0, 0xbeefcafe);
 
@@ -111,21 +110,19 @@ int main(int argc, const char** argv)
         for (i = 0; i < 10; ++i) {
             fprintf(stderr, "Compressing 1 GB\n");
             if (compress(cctx, dctx, out, outSize, buffer, dataSize, roundtrip, ZSTD_e_continue))
-                goto cleanup;
+                return 1;
         }
     }
     fprintf(stderr, "Compressing 1 GB\n");
     if (compress(cctx, dctx, out, outSize, buffer, dataSize, roundtrip, ZSTD_e_end))
-        goto cleanup;
+        return 1;
 
-    _exit_code = 0;
     fprintf(stderr, "Success!\n");
 
-cleanup:
     free(roundtrip);
     free(out);
     free(buffer);
     ZSTD_freeDCtx(dctx);
     ZSTD_freeCCtx(cctx);
-    return _exit_code;
+    return 0;
 }

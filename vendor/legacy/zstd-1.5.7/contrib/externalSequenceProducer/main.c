@@ -27,7 +27,6 @@ do {                                                    \
 } while (0)                                             \
 
 int main(int argc, char *argv[]) {
-    int retn = 0;
     if (argc != 2) {
         printf("Usage: externalSequenceProducer <file>\n");
         return 1;
@@ -97,12 +96,12 @@ int main(int argc, char *argv[]) {
                 break;
             }
         }
-        retn = 1;
+        return 1;
     }
 
     ZSTD_freeCCtx(zc);
     free(src);
     free(dst);
     free(val);
-    return retn;
+    return 0;
 }

@@ -143,14 +143,7 @@ int ZSTD_pthread_mutex_init(ZSTD_pthread_mutex_t* mutex, pthread_mutexattr_t con
     *mutex = (pthread_mutex_t*)ZSTD_malloc(sizeof(pthread_mutex_t));
     if (!*mutex)
         return 1;
-    {
-        int const ret = pthread_mutex_init(*mutex, attr);
-        if (ret != 0) {
-            ZSTD_free(*mutex);
-            *mutex = NULL;
-        }
-        return ret;
-    }
+    return pthread_mutex_init(*mutex, attr);
 }
 
 int ZSTD_pthread_mutex_destroy(ZSTD_pthread_mutex_t* mutex)
@@ -171,14 +164,7 @@ int ZSTD_pthread_cond_init(ZSTD_pthread_cond_t* cond, pthread_condattr_t const* 
     *cond = (pthread_cond_t*)ZSTD_malloc(sizeof(pthread_cond_t));
     if (!*cond)
         return 1;
-    {
-        int const ret = pthread_cond_init(*cond, attr);
-        if (ret != 0) {
-            ZSTD_free(*cond);
-            *cond = NULL;
-        }
-        return ret;
-    }
+    return pthread_cond_init(*cond, attr);
 }
 
 int ZSTD_pthread_cond_destroy(ZSTD_pthread_cond_t* cond)
