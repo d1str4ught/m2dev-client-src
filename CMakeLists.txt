@@ -8,6 +8,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # ASan support
 option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
 
+# Custom options
+option(USE_LEGDEPS "Use preincluded legacy dependencies (vendor/legacy instead of git submodules installation via depinit)" ON)
+
 set(CMAKE_MODULE_PATH
 	${CMAKE_MODULE_PATH}
 	"${CMAKE_CURRENT_SOURCE_DIR}/buildtool"
@@ -58,37 +61,40 @@ add_definitions(-DPy_NO_ENABLE_SHARED)
 add_compile_definitions("$<$<CONFIG:Debug>:DEBUG>")
 add_compile_definitions("$<$<CONFIG:RelWithDebInfo>:_DISTRIBUTE>")
 add_compile_definitions("$<$<CONFIG:Release>:_DISTRIBUTE>")
+
 # ====================================================================
 # [START] Centralized Submodule Initialization (Client)
 # Ensure dependencies are available before compilation or linking starts.
 # ====================================================================
 
 # Ensure this is a Git repository before proceeding
-if (EXISTS "${CMAKE_SOURCE_DIR}/.git")
-	# 1. Locate the Python interpreter (Required to run depinit_client.py)
-	find_package(Python3 REQUIRED COMPONENTS Interpreter)
+if (NOT USE_LEGDEPS)
+	if (EXISTS "${CMAKE_SOURCE_DIR}/.git")
+		# 1. Locate the Python interpreter (Required to run depinit_client.py)
+		find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
-	# 2. Execute the dependency initialization script
-	message(STATUS "Running client dependency initialization script (depinit.py)...")
+		# 2. Execute the dependency initialization script
+		message(STATUS "Running client dependency initialization script (depinit.py)...")
 
-	execute_process(
-		COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/depinit.py"
-		# Ensure execution happens in the project root for Git commands
-		WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" 
-		RESULT_VARIABLE DEP_INIT_RESULT
-		OUTPUT_VARIABLE DEP_INIT_OUTPUT
-		ERROR_VARIABLE DEP_INIT_OUTPUT
-	)
+		execute_process(
+			COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/depinit.py"
+			# Ensure execution happens in the project root for Git commands
+			WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" 
+			RESULT_VARIABLE DEP_INIT_RESULT
+			OUTPUT_VARIABLE DEP_INIT_OUTPUT
+			ERROR_VARIABLE DEP_INIT_OUTPUT
+		)
 
-	# 3. Print the script output
-	message(STATUS "${DEP_INIT_OUTPUT}")
+		# 3. Print the script output
+		message(STATUS "${DEP_INIT_OUTPUT}")
 
-	# 4. Check the return code and halt if the script failed
-	if (DEP_INIT_RESULT)
-		message(FATAL_ERROR "Client dependency initialization script failed! See messages above.")
+		# 4. Check the return code and halt if the script failed
+		if (DEP_INIT_RESULT)
+			message(FATAL_ERROR "Client dependency initialization script failed! See messages above.")
+		endif()
+
+		message(STATUS "All client dependencies are ready.")
 	endif()
-
-	message(STATUS "All client dependencies are ready.")
 endif()
 
 # ====================================================================
@@ -96,7 +102,13 @@ endif()
 # ====================================================================
 
 include_directories("src")
-include_directories("extern/include")
+include_directories("extern/include/common")
+
+if (USE_LEGDEPS)
+	include_directories("extern/include/legacy")
+else()
+	include_directories("extern/include/latest")
+endif()
 
 # For MSVC we must ensure Crypto++ is built as static-only and avoid its asm duplicates.
 # This forces the vendor/cryptopp subproject to:
@@ -112,6 +124,11 @@ if (MSVC)
 endif()
 
 # Add subdirectories for libraries and executables
-add_subdirectory(vendor)
+if (USE_LEGDEPS)
+	add_subdirectory(vendor/legacy)
+else()
+	add_subdirectory(vendor/latest)
+endif()
+
 add_subdirectory(src)
 add_subdirectory(extern)

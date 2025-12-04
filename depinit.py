@@ -13,48 +13,48 @@ DEPENDENCIES = [
 		"name": "cryptopp",
 		"type": "extract",
 		"repo": "https://github.com/weidai11/cryptopp",
-		"target_dir": "vendor/cryptopp",
+		"target_dir": "vendor/latest/cryptopp",
 		"extract": [],
 	},
 	{
 		"name": "mio",
 		"type": "submodule",
 		"repo": "https://github.com/vimpunk/mio",
-		"target_dir": "vendor/mio",
+		"target_dir": "vendor/latest/mio",
 	},
 	{
 		"name": "zstd",
 		"type": "submodule",
 		"repo": "https://github.com/facebook/zstd",
-		"target_dir": "vendor/zstd",
+		"target_dir": "vendor/latest/zstd",
 	},
 	# File/Folder Extraction (Temporary Clone & Cleanup)
 	{
 		"name": "lzo",
 		"type": "extract",
 		"repo": "https://github.com/synaptseal/lzo-2.10",
-		"target_dir": "vendor/lzo-2.10",
+		"target_dir": "vendor/latest/lzo-2.10",
 		"extract": [("include", "."), ("src", ".")], # (source_in_repo, target_in_dest)
 	},
 	{
 		"name": "DirectXMath",
 		"type": "extract",
 		"repo": "https://github.com/microsoft/DirectXMath",
-		"target_dir": "vendor/DirectXMath",
+		"target_dir": "vendor/latest/DirectXMath",
 		"extract": [("build", ".")], # (source_in_repo, target_in_dest)
 	},
 	{
 		"name": "stb",
 		"type": "extract",
 		"repo": "https://github.com/nothings/stb",
-		"target_dir": "extern/include",
+		"target_dir": "extern/include/latest",
 		"extract": [("stb_image.h", "."), ("stb_image_write.h", ".")],
 	},
 	{
 		"name": "pcg-cpp",
 		"type": "extract",
 		"repo": "https://github.com/imneme/pcg-cpp",
-		"target_dir": "extern/include",
+		"target_dir": "extern/include/latest",
 		"extract": [
 			("include/pcg_random.hpp", "."),
 			("include/pcg_extras.hpp", "."),
@@ -65,28 +65,28 @@ DEPENDENCIES = [
 		"name": "argparse",
 		"type": "extract",
 		"repo": "https://github.com/p-ranav/argparse",
-		"target_dir": "extern/include",
+		"target_dir": "extern/include/latest",
 		"extract": [("include/argparse/argparse.hpp", ".")]
 	},
 	{
 		"name": "miniaudio",
 		"type": "extract",
 		"repo": "https://github.com/mackron/miniaudio",
-		"target_dir": "extern/include",
+		"target_dir": "extern/include/latest",
 		"extract": [("miniaudio.c", "."), ("miniaudio.h", ".")],
 	},
 	{
 		"name": "rapidjson",
 		"type": "extract",
 		"repo": "https://github.com/Tencent/rapidjson",
-		"target_dir": "extern/include",
+		"target_dir": "extern/include/latest",
 		"extract": [("include/rapidjson", "rapidjson")],
 	},
 	{
 		"name": "wil",
 		"type": "extract",
 		"repo": "https://github.com/microsoft/wil",
-		"target_dir": "extern/include",
+		"target_dir": "extern/include/latest",
 		"extract": [("include/wil", "wil")],
 	},
 ]
