@@ -10,7 +10,7 @@
 
 # -------------------------------------------------------------------
 # 3. AGGRESSIVE VENDOR/LATEST IGNORE
-# Ignore everything in the vendor/legacy directory by default.
+# Ignore everything in the vendor/latest directory by default.
 # -------------------------------------------------------------------
 /vendor/latest/*
 
