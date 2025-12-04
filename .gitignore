@@ -9,10 +9,10 @@
 .tmp_*
 
 # -------------------------------------------------------------------
-# 3. AGGRESSIVE VENDOR/ IGNORE (This is what you need)
-# Ignore everything in the vendor directory by default.
+# 3. AGGRESSIVE VENDOR/LATEST IGNORE
+# Ignore everything in the vendor/legacy directory by default.
 # -------------------------------------------------------------------
-/vendor/*
+/vendor/latest/*
 
 # -------------------------------------------------------------------
 # 4. ESSENTIAL RE-INCLUSIONS (Submodules & Custom Files)
@@ -23,23 +23,23 @@
 # -------------------------------------------------------------------
 
 # Re-include Submodule Folders (Git automatically handles the contents)
-!/vendor/cryptopp/
-!/vendor/mio/
-!/vendor/zstd/
+!/vendor/latest/cryptopp/
+!/vendor/latest/mio/
+!/vendor/latest/zstd/
 
 # Re-include LZO (Extracted files must be tracked)
 # Since lzo is now an extracted dependency, its contents MUST be tracked.
-!/vendor/lzo-2.10/
-!/vendor/lzo-2.10/**
+!/vendor/latest/lzo-2.10/
+!/vendor/latest/lzo-2.10/**
 
 # Re-include DirectXMath (Extracted files must be tracked)
-!/vendor/DirectXMath/
-!/vendor/DirectXMath/**
+!/vendor/latest/DirectXMath/
+!/vendor/latest/DirectXMath/**
 
 # Re-include Custom CMake Files (The specific files you want tracked)
-!/vendor/CMakeLists.txt
-!/vendor/cryptopp/CMakeLists.txt
-!/vendor/lzo-2.10/CMakeLists.txt
+!/vendor/latest/CMakeLists.txt
+!/vendor/latest/cryptopp/CMakeLists.txt
+!/vendor/latest/lzo-2.10/CMakeLists.txt
 
 # -------------------------------------------------------------------
 # 5. EXTERN/INCLUDE FILES (Extracted files must be tracked)
