@@ -93,6 +93,7 @@ if (NOT USE_LEGDEPS)
 			message(FATAL_ERROR "Client dependency initialization script failed! See messages above.")
 		endif()
 
+		# Final message
 		message(STATUS "All client dependencies are ready.")
 	endif()
 endif()
