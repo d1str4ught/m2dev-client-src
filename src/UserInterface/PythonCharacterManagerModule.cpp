@@ -713,6 +713,12 @@ PyObject * chrmgrIsPossibleEmoticon(PyObject* poSelf, PyObject* poArgs)
 	return Py_BuildValue("i", result);
 }
 
+PyObject * chrmgrPreloadRaceMotions(PyObject* poSelf, PyObject* poArgs)
+{
+	CRaceManager::PreloadPlayerRaceMotions();
+	return Py_BuildNone();
+}
+
 void initchrmgr()
 {
 	static PyMethodDef s_methods[] =
@@ -746,6 +752,7 @@ void initchrmgr()
 		{ "SetAffect",					chrmgrSetAffect,						METH_VARARGS },
 		{ "SetEmoticon",				chrmgrSetEmoticon,						METH_VARARGS },
 		{ "IsPossibleEmoticon",			chrmgrIsPossibleEmoticon,				METH_VARARGS },
+		{ "PreloadRaceMotions",			chrmgrPreloadRaceMotions,				METH_VARARGS },
 		{ "RegisterEffect",				chrmgrRegisterEffect,					METH_VARARGS },
 		{ "RegisterCacheEffect",		chrmgrRegisterCacheEffect,				METH_VARARGS },
 		{ "RegisterPointEffect",		chrmgrRegisterPointEffect,				METH_VARARGS },

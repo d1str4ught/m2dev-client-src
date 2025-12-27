@@ -534,7 +534,7 @@ void CGraphicThingInstance::RegisterMotionThing(DWORD dwMotionKey, CGraphicThing
 {
 	CGraphicThing::TRef * pMotionRef = new CGraphicThing::TRef;
 	pMotionRef->SetPointer(pMotionThing);
-	m_roMotionThingMap.insert(std::map<DWORD, CGraphicThing::TRef *>::value_type(dwMotionKey, pMotionRef));
+	m_roMotionThingMap.insert(std::make_pair(dwMotionKey, pMotionRef));
 }
 
 void CGraphicThingInstance::ResetLocalTime()

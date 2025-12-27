@@ -29,6 +29,9 @@ class CRaceManager : public CSingleton<CRaceManager>
 
 		BOOL GetRaceDataPointer(DWORD dwRaceIndex, CRaceData ** ppRaceData);
 
+		// Race motion preloading
+		static void PreloadPlayerRaceMotions();
+		static bool IsPreloaded() { return s_bPreloaded; }
 
 	protected:
 		CRaceData* __LoadRaceData(DWORD dwRaceIndex);
@@ -46,4 +49,5 @@ class CRaceManager : public CSingleton<CRaceManager>
 	private:
 		std::string						m_strPathName;
 		CRaceData *						m_pSelectedRaceData;
+		static bool						s_bPreloaded;
 };

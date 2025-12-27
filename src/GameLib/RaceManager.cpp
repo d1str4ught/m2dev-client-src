@@ -3,6 +3,8 @@
 #include "RaceMotionData.h"
 #include "PackLib/PackManager.h"
 
+bool CRaceManager::s_bPreloaded = false;
+
 bool __IsGuildRace(unsigned race)
 {
 	if (race >= 14000 && race < 15000)
@@ -447,4 +449,47 @@ CRaceManager::CRaceManager()
 CRaceManager::~CRaceManager()
 {
 	Destroy();
+}
+
+void CRaceManager::PreloadPlayerRaceMotions()
+{
+	if (s_bPreloaded)
+		return;
+
+	// Preload all player races (0-7)
+	for (DWORD dwRace = 0; dwRace <= 7; ++dwRace)
+	{
+		CRaceData* pRaceData = NULL;
+		if (!Instance().GetRaceDataPointer(dwRace, &pRaceData))
+			continue;
+
+		CRaceData::TMotionModeDataIterator itor;
+
+		if (pRaceData->CreateMotionModeIterator(itor))
+		{
+			do
+			{
+				CRaceData::TMotionModeData* pMotionModeData = itor->second;
+
+				CRaceData::TMotionVectorMap::iterator itorMotion = pMotionModeData->MotionVectorMap.begin();
+				for (; itorMotion != pMotionModeData->MotionVectorMap.end(); ++itorMotion)
+				{
+					const CRaceData::TMotionVector& c_rMotionVector = itorMotion->second;
+					CRaceData::TMotionVector::const_iterator it;
+
+					for (it = c_rMotionVector.begin(); it != c_rMotionVector.end(); ++it)
+					{
+						CGraphicThing* pMotion = it->pMotion;
+						if (pMotion)
+						{
+							pMotion->AddReference();
+						}
+					}
+				}
+			}
+			while (pRaceData->NextMotionModeIterator(itor));
+		}
+	}
+
+	s_bPreloaded = true;
 }
