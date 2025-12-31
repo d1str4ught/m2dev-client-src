@@ -176,6 +176,8 @@ void CGrannyModelInstance::UpdateWorldMatrices(const D3DXMATRIX* c_pWorldMatrix)
 		D3DXMATRIX & rWorldMatrix = m_meshMatrices[i];
 
 		const CGrannyMesh * pMesh = m_pModel->GetMeshPointer(i);
+		if (!pMesh)
+			continue;
 
 		// WORK
 		int * boneIndices = __GetMeshBoneIndices(i);

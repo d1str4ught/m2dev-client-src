@@ -101,6 +101,8 @@ bool CGrannyModelInstance::Intersect(const D3DXMATRIX * c_pMatrix,
 
 		granny_matrix_4x4* pgrnMatCompositeBuffer = GrannyGetWorldPoseComposite4x4Array(m_pgrnWorldPose);
 		const CGrannyMesh* c_pMesh = m_pModel->GetMeshPointer(rcurBoundBox.meshIndex);
+		if (!c_pMesh)
+			continue;
 		const granny_mesh* c_pgrnMesh = c_pMesh->GetGrannyMeshPointer();
 
 		if (!GrannyMeshIsRigid(c_pgrnMesh))

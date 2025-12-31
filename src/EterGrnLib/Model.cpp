@@ -14,16 +14,32 @@ const CGrannyModel::TMeshNode* CGrannyModel::GetMeshNodeList(CGrannyMesh::EType 
 
 CGrannyMesh * CGrannyModel::GetMeshPointer(int iMesh)
 {
-	assert(CheckMeshIndex(iMesh));
-	assert(m_meshs != NULL);
+	if (!CheckMeshIndex(iMesh))
+	{
+		TraceError("CGrannyModel::GetMeshPointer - Invalid mesh index: %d (max: %d)", iMesh, m_meshNodeSize);
+		return nullptr;
+	}
+	if (m_meshs == NULL)
+	{
+		TraceError("CGrannyModel::GetMeshPointer - m_meshs is NULL");
+		return nullptr;
+	}
 
 	return m_meshs + iMesh;
 }
 
 const CGrannyMesh* CGrannyModel::GetMeshPointer(int iMesh) const
 {
-	assert(CheckMeshIndex(iMesh));
-	assert(m_meshs != NULL);
+	if (!CheckMeshIndex(iMesh))
+	{
+		TraceError("CGrannyModel::GetMeshPointer(const) - Invalid mesh index: %d (max: %d)", iMesh, m_meshNodeSize);
+		return nullptr;
+	}
+	if (m_meshs == NULL)
+	{
+		TraceError("CGrannyModel::GetMeshPointer(const) - m_meshs is NULL");
+		return nullptr;
+	}
 
 	return m_meshs + iMesh;
 }
