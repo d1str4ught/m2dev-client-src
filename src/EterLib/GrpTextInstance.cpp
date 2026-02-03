@@ -644,7 +644,8 @@ void CGraphicTextInstance::Render(RECT * pClipRect)
 				akVertex[2].x=fFontEx-fFontHalfWeight+feather;
 				akVertex[3].x=fFontEx-fFontHalfWeight+feather;
 
-				vtxBatch.insert(vtxBatch.end(), std::begin(akVertex), std::end(akVertex));
+				vtxBatch.push_back(akVertex[0]); vtxBatch.push_back(akVertex[1]); vtxBatch.push_back(akVertex[2]);
+				vtxBatch.push_back(akVertex[2]); vtxBatch.push_back(akVertex[1]); vtxBatch.push_back(akVertex[3]);
 
 				// 오른
 				akVertex[0].x=fFontSx+fFontHalfWeight-feather;
@@ -652,7 +653,8 @@ void CGraphicTextInstance::Render(RECT * pClipRect)
 				akVertex[2].x=fFontEx+fFontHalfWeight+feather;
 				akVertex[3].x=fFontEx+fFontHalfWeight+feather;
 
-				vtxBatch.insert(vtxBatch.end(), std::begin(akVertex), std::end(akVertex));
+				vtxBatch.push_back(akVertex[0]); vtxBatch.push_back(akVertex[1]); vtxBatch.push_back(akVertex[2]);
+				vtxBatch.push_back(akVertex[2]); vtxBatch.push_back(akVertex[1]); vtxBatch.push_back(akVertex[3]);
 
 				akVertex[0].x=fFontSx-feather;
 				akVertex[1].x=fFontSx-feather;
@@ -665,7 +667,8 @@ void CGraphicTextInstance::Render(RECT * pClipRect)
 				akVertex[2].y=fFontSy-fFontHalfWeight-feather;
 				akVertex[3].y=fFontEy-fFontHalfWeight+feather;
 
-				vtxBatch.insert(vtxBatch.end(), std::begin(akVertex), std::end(akVertex));
+				vtxBatch.push_back(akVertex[0]); vtxBatch.push_back(akVertex[1]); vtxBatch.push_back(akVertex[2]);
+				vtxBatch.push_back(akVertex[2]); vtxBatch.push_back(akVertex[1]); vtxBatch.push_back(akVertex[3]);
 
 				// 아래
 				akVertex[0].y=fFontSy+fFontHalfWeight-feather;
@@ -673,7 +676,8 @@ void CGraphicTextInstance::Render(RECT * pClipRect)
 				akVertex[2].y=fFontSy+fFontHalfWeight-feather;
 				akVertex[3].y=fFontEy+fFontHalfWeight+feather;
 
-				vtxBatch.insert(vtxBatch.end(), std::begin(akVertex), std::end(akVertex));
+				vtxBatch.push_back(akVertex[0]); vtxBatch.push_back(akVertex[1]); vtxBatch.push_back(akVertex[2]);
+				vtxBatch.push_back(akVertex[2]); vtxBatch.push_back(akVertex[1]); vtxBatch.push_back(akVertex[3]);
 
 				fCurX += fFontAdvance;
 			}
@@ -743,7 +747,8 @@ void CGraphicTextInstance::Render(RECT * pClipRect)
 
 			akVertex[0].color = akVertex[1].color = akVertex[2].color = akVertex[3].color = m_dwColorInfoVector[i];
 
-			vtxBatch.insert(vtxBatch.end(), std::begin(akVertex), std::end(akVertex));
+			vtxBatch.push_back(akVertex[0]); vtxBatch.push_back(akVertex[1]); vtxBatch.push_back(akVertex[2]);
+			vtxBatch.push_back(akVertex[2]); vtxBatch.push_back(akVertex[1]); vtxBatch.push_back(akVertex[3]);
 
 			fCurX += fFontAdvance;
 		}
@@ -827,7 +832,7 @@ void CGraphicTextInstance::Render(RECT * pClipRect)
 			continue;
 
 		STATEMANAGER.SetTexture(0, pTexture);
-		STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, vtxBatch.size() - 2, vtxBatch.data(), sizeof(SVertex));
+		STATEMANAGER.DrawPrimitiveUP(D3DPT_TRIANGLELIST, vtxBatch.size() / 3, vtxBatch.data(), sizeof(SVertex));
 	}
 
 	if (m_isCursor)

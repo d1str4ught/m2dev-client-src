@@ -16,7 +16,7 @@ PyObject* grpCreateTextBar(PyObject* poSelf, PyObject* poArgs)
 		return Py_BuildException();
 
 	CTextBar * pTextBar = new CTextBar(12, false);
-	if (!pTextBar->Create(NULL, iWidth, iHeight))
+	if (!pTextBar->Create(iWidth, iHeight))
 	{
 		delete pTextBar;
 		return Py_BuildValue("K", NULL);
@@ -39,7 +39,7 @@ PyObject* grpCreateBigTextBar(PyObject* poSelf, PyObject* poArgs)
 		return Py_BuildException();
 
 	CTextBar * pTextBar = new CTextBar(iFontSize, true);
-	if (!pTextBar->Create(NULL, iWidth, iHeight))
+	if (!pTextBar->Create(iWidth, iHeight))
 	{
 		delete pTextBar;
 		return Py_BuildValue("K", NULL);

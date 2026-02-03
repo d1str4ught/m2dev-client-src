@@ -2,7 +2,9 @@
 
 #include "GrpTexture.h"
 #include "GrpImageTexture.h"
-#include "GrpDIB.h"
+
+#include <ft2build.h>
+#include FT_FREETYPE_H
 
 #include <vector>
 #include <map>
@@ -51,24 +53,21 @@ class CGraphicFontTexture : public CGraphicTexture
 
 		bool AppendTexture();
 
-		HFONT GetFont();
-
 	protected:
 		typedef std::vector<CGraphicImageTexture*> TGraphicImageTexturePointerVector;
 		typedef std::map<TCharacterKey, TCharacterInfomation> TCharacterInfomationMap;
-		typedef std::map<WORD, HFONT> TFontMap;
 
 	protected:
-		CGraphicDib	m_dib;
+		FT_Face m_ftFace;
 
-		HFONT m_hFontOld;
-		HFONT m_hFont;
+		// CPU-side atlas buffer (replaces CGraphicDib)
+		DWORD* m_pAtlasBuffer;
+		int m_atlasWidth;
+		int m_atlasHeight;
 
 		TGraphicImageTexturePointerVector m_pFontTextureVector;
 
 		TCharacterInfomationMap m_charInfoMap;
-
-		TFontMap m_fontMap;
 
 		int m_x;
 		int m_y;
@@ -78,4 +77,8 @@ class CGraphicFontTexture : public CGraphicTexture
 		TCHAR m_fontName[LF_FACESIZE];
 		LONG m_fontSize;
 		bool m_bItalic;
+
+		// FreeType metrics cached per-font
+		int m_ascender;
+		int m_lineHeight;
 };

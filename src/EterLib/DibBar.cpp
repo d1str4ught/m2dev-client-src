@@ -138,9 +138,9 @@ void CDibBar::__BuildTextureBlockList(DWORD dwWidth, DWORD dwHeight, DWORD dwMax
 	}
 }
 
-bool CDibBar::Create(HDC hdc, DWORD dwWidth, DWORD dwHeight)
+bool CDibBar::Create(DWORD dwWidth, DWORD dwHeight)
 {
-	if (!m_dib.Create(hdc, dwWidth, dwHeight))
+	if (!m_dib.Create(dwWidth, dwHeight))
 	{
 		Tracef(" Failed to create CDibBar\n");
 		return false;

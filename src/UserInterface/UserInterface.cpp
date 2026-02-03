@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <utf8.h>
 #include <sodium.h>
+#include "EterLib/FontManager.h"
 
 extern "C" {
 	extern int _fltused;
@@ -297,6 +298,12 @@ static bool Main(HINSTANCE hInstance, LPSTR lpCmdLine)
 		return false;
 	}
 
+	if (!CFontManager::Instance().Initialize())
+	{
+		LogBox("FreeType initialization failed");
+		return false;
+	}
+
 	static CLZO lzo;
 	CPackManager packMgr;
 
@@ -324,6 +331,8 @@ static bool Main(HINSTANCE hInstance, LPSTR lpCmdLine)
 
 	app->Destroy();
 	delete app;
+
+	CFontManager::Instance().Destroy();
 	return 0;
 }
 
