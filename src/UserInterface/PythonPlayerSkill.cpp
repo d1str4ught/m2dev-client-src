@@ -676,6 +676,14 @@ bool CPythonPlayer::__UseSkill(DWORD dwSlotIndex)
 		}
 	}
 
+	// celine skill fix
+
+	if (pkInstTarget && pkInstTarget != pkInstMain)
+	{
+		pkInstMain->SetSkillTarget(pkInstTarget->GetVirtualID());
+	}
+	// END OF celine skill fix
+
 	// 관격술 처리
 	DWORD dwTargetMaxCount = pSkillData->GetTargetCount(rkSkillInst.fcurEfficientPercentage);
 	DWORD dwRange = __GetSkillTargetRange(*pSkillData);

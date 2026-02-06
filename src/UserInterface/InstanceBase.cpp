@@ -1869,6 +1869,25 @@ void CInstanceBase::Update()
 	StateProcess();
 	m_GraphicThingInstance.PhysicsProcess();
 	m_GraphicThingInstance.RotationProcess();
+
+	// celine skill fix
+	if (IsUsingSkill())
+	{
+		if (m_dwSkillTargetVID)
+		{
+			CInstanceBase* pTargetInstance =
+				CPythonCharacterManager::Instance().GetInstancePtr(m_dwSkillTargetVID);
+
+			if (pTargetInstance)
+				NEW_LookAtDestInstance(*pTargetInstance);
+		}
+	}
+	else
+	{
+		ClearSkillTarget();
+	}
+	// END OF celine skill fix
+
 	m_GraphicThingInstance.ComboProcess();
 	m_GraphicThingInstance.AccumulationMovement();
 
@@ -3105,6 +3124,9 @@ void CInstanceBase::__Initialize()
 	m_GraphicThingInstance.Initialize();
 
 	m_dwAdvActorVID=0;
+	// celine skill fix
+	m_dwSkillTargetVID = 0;
+	// END OF celine skill fix
 	m_dwLastDmgActorVID=0;
 
 	m_nAverageNetworkGap=0;
@@ -3169,3 +3191,15 @@ void CInstanceBase::SetLevel(DWORD dwLvl)
 {
 	m_dwLevel = dwLvl;
 }
+
+// celine skill fix
+void CInstanceBase::SetSkillTarget(DWORD dwVID)
+{
+	m_dwSkillTargetVID = dwVID;
+}
+
+void CInstanceBase::ClearSkillTarget()
+{
+	m_dwSkillTargetVID = 0;
+}
+// END OF celine skill fix

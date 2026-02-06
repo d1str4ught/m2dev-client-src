@@ -324,6 +324,9 @@ class CActorInstance : public IActorInstance, public IFlyTargetableObject
 		virtual bool TestCollisionWithDynamicSphere(const CDynamicSphereInstance & dsi);
 
 		void UpdateAdvancingPointInstance();
+		// celine skill fix
+		void UpdateSplashArea();
+		// END OF celine skill fix
 
 		BOOL IsClickableDistanceDestInstance(CActorInstance & rkInstDst, float fDistance);
 
