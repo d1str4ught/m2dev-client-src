@@ -22,18 +22,6 @@ void CGrannyModelInstance::Update(DWORD dwAniFPS)
 	GrannySetModelClock(m_pgrnModelInstance, GetLocalTime());	
 	//DWORD t2=timeGetTime();
 
-#ifdef __PERFORMANCE_CHECKER__
-	{
-		static FILE* fp=fopen("perf_grn_setmodelclock.txt", "w");
-
-		if (t2-t1>3)
-		{
-			fprintf(fp, "%f:%x:- GrannySetModelClock(time=%f) = %dms\n", timeGetTime()/1000.0f, this, GetLocalTime(), t2-t1);
-			fflush(fp);
-		}			
-	}
-#endif	
-
 }
 
 void CGrannyModelInstance::UpdateLocalTime(float fElapsedTime)

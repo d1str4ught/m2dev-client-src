@@ -60,9 +60,6 @@ bool CMapOutdoor::Update(float fX, float fY, float fZ)
 	
 	short sCoordX = MINMAX(0, ix / CTerrainImpl::TERRAIN_XSIZE, m_sTerrainCountX - 1);
 	short sCoordY = MINMAX(0, iy / CTerrainImpl::TERRAIN_YSIZE, m_sTerrainCountY - 1);
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t2=ELTimer_GetMSec();
-#endif
 
 	bool bNeedInit = (m_PrevCoordinate.m_sTerrainCoordX == -1 || m_PrevCoordinate.m_sTerrainCoordY == -1);
 
@@ -109,49 +106,13 @@ bool CMapOutdoor::Update(float fX, float fY, float fZ)
 
 		Tracenf("Update::Load spent %d ms\n", ELTimer_GetMSec() - t1);
 	}
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t3=ELTimer_GetMSec();
-#endif
 	CSpeedTreeForestDirectX8::Instance().UpdateSystem(CTimer::Instance().GetCurrentSecond());
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t4=ELTimer_GetMSec();
-#endif
+
 	__UpdateGarvage();
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t5=ELTimer_GetMSec();
-#endif
 	UpdateTerrain(fX, fY);
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t6=ELTimer_GetMSec();
-#endif
 	__UpdateArea(v3Player);
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t7=ELTimer_GetMSec();
-#endif
 	UpdateSky();
-#ifdef __PERFORMANCE_CHECKER__	
-	DWORD t8=ELTimer_GetMSec();
-#endif
 	__HeightCache_Update();
-
-#ifdef __PERFORMANCE_CHECKER__
-	{
-		static FILE* fp=fopen("perf_outdoor_update.txt", "w");
-
-		if (t8-t1>5)
-		{
-			fprintf(fp, "OD.Total %d (Time %f)\n", t3-t1, ELTimer_GetMSec()/1000.0f);
-			fprintf(fp, "OD.INIT %d\n", t2-t1);
-			fprintf(fp, "OD.LOAD %d\n", t3-t2);
-			fprintf(fp, "OD.TREE %d\n", t4-t3);
-			fprintf(fp, "OD.GVG %d\n", t5-t4);
-			fprintf(fp, "OD.TRN %d\n", t6-t5);
-			fprintf(fp, "OD.AREA %d\n", t7-t6);
-			fprintf(fp, "OD.SKY %d\n", t8-t7);
-			fflush(fp);
-		}
-	}
-#endif
 	
 	return true;
 }
@@ -218,16 +179,12 @@ void CMapOutdoor::__UpdateArea(D3DXVECTOR3& v3Player)
 
 void CMapOutdoor::__Game_UpdateArea(D3DXVECTOR3& v3Player)
 {
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t1=timeGetTime();
-#endif
 	m_PCBlockerVector.clear();	
 	m_ShadowReceiverVector.clear();
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t2=timeGetTime();
-#endif
+
 	CCameraManager& rCmrMgr=CCameraManager::Instance();
 	CCamera * pCamera = rCmrMgr.GetCurrentCamera();
+
 	if (!pCamera)
 		return;
 
@@ -250,67 +207,29 @@ void CMapOutdoor::__Game_UpdateArea(D3DXVECTOR3& v3Player)
 	);
 	}
 	*/
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t3=timeGetTime();
-#endif
+
 	__CollectShadowReceiver(v3Player, v3Light);
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t4=timeGetTime();
-#endif
 	__CollectCollisionPCBlocker(v3Eye, v3Player, fDistance);
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t5=timeGetTime();
-#endif
 	__CollectCollisionShadowReceiver(v3Player, v3Light);
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t6=timeGetTime();
-#endif
 	__UpdateAroundAreaList();
-
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t7=timeGetTime();
-	{
-		static FILE* fp=fopen("perf_area_update.txt", "w");
-
-		if (t7-t1>5)
-		{
-			fprintf(fp, "UA.Total %d (Time %f)\n", t3-t1, ELTimer_GetMSec()/1000.0f);
-			fprintf(fp, "UA.Clear %d\n", t2-t1);
-			fprintf(fp, "UA.Vector %d\n", t3-t2);
-			fprintf(fp, "UA.Shadow %d\n", t4-t3);
-			fprintf(fp, "UA.Blocker %d\n", t5-t4);
-			fprintf(fp, "UA.ColliShadow %d\n", t6-t5);
-			fprintf(fp, "UA.Area %d\n", t7-t6);			
-			fflush(fp);
-		}
-	}
-#endif
 }
 
 void CMapOutdoor::__UpdateAroundAreaList()
 {
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD ft1=timeGetTime();
-#endif
 	DWORD at[AROUND_AREA_NUM];
+
 	for (int i = 0; i < AROUND_AREA_NUM; ++i)
 	{
 		DWORD t1=timeGetTime();
 		CArea * pArea;
+
 		if (GetAreaPointer(i, &pArea))
 			pArea->Update();
+
 		DWORD t2=timeGetTime();
 
 		at[i]=t2-t1;
-	}	
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD ft2=timeGetTime();
-	if (ft2-ft1>5)
-	{
-		for (int i=0; i<AROUND_AREA_NUM; ++i)
-			Tracef("Area %d %d\n", i, at[i]);
 	}
-#endif
 }
 
 
@@ -388,16 +307,8 @@ void CMapOutdoor::__CollectShadowReceiver(D3DXVECTOR3& v3Target, D3DXVECTOR3& v3
 
 	CCullingManager & rkCullingMgr = CCullingManager::Instance();
 
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t1=ELTimer_GetMSec();
-#endif
-
 	FGetShadowReceiverFromHeightData kGetShadowReceiverFromHeightData(v3Target.x, v3Target.y, s.v3Position.x, s.v3Position.y);
 	rkCullingMgr.ForInRange(aVector3d, 10.0f, &kGetShadowReceiverFromHeightData);
-
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t2=ELTimer_GetMSec();
-#endif
 
 	if (kGetShadowReceiverFromHeightData.m_bReceiverFound)
 	{
@@ -408,23 +319,6 @@ void CMapOutdoor::__CollectShadowReceiver(D3DXVECTOR3& v3Target, D3DXVECTOR3& v3
 				m_ShadowReceiverVector.push_back(pObjInstEach);	
 		}
 	}
-
-#ifdef __PERFORMANCE_CHECKER__
-	static FILE* fp=fopen("perf_shadow_collect.txt", "w");
-	DWORD t3=ELTimer_GetMSec();
-
-	if (t3-t1>5)
-	{
-		fprintf(fp, "SC.Total %d (Time %f)\n", t3-t1, ELTimer_GetMSec()/1000.0f);
-		fprintf(fp, "SC.Find %d\n", t2-t1);
-		fprintf(fp, "SC.Push %d\n", t3-t2);
-		fprintf(fp, "SC.Count (Collect %d, Over %d, Check %d)\n", 
-			kGetShadowReceiverFromHeightData.m_dwCollectCount, 
-			kGetShadowReceiverFromHeightData.m_dwCollectOverCount,
-			kGetShadowReceiverFromHeightData.m_dwCheckCount);
-		fflush(fp);
-	}
-#endif
 }
 
 
@@ -573,15 +467,9 @@ struct PCBlocker_SInstanceList
 
 void CMapOutdoor::__CollectCollisionPCBlocker(D3DXVECTOR3& v3Eye, D3DXVECTOR3& v3Target, float fDistance)
 {
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t1=timeGetTime();
-#endif
 
 	Vector3d v3dRayStart;
 	v3dRayStart.Set(v3Eye.x, v3Eye.y, v3Eye.z);
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t2=timeGetTime();
-#endif
 
 	PCBlocker_CDynamicSphereInstanceVector aDynamicSphereInstanceVector;
 	{
@@ -606,17 +494,13 @@ void CMapOutdoor::__CollectCollisionPCBlocker(D3DXVECTOR3& v3Eye, D3DXVECTOR3& v
 		pkDSI->v3Position = v3Eye;
 		++pkDSI;
 	}
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t3=timeGetTime();	
-#endif
+
 	CCullingManager & rkCullingMgr = CCullingManager::Instance();
 
 	PCBlocker_SInstanceList kPCBlockerList(&aDynamicSphereInstanceVector);
 	RangeTester<PCBlocker_SInstanceList> kPCBlockerRangeTester(&kPCBlockerList);
+
 	rkCullingMgr.RangeTest(v3dRayStart, fDistance, &kPCBlockerRangeTester);
-#ifdef __PERFORMANCE_CHECKER__
- 	DWORD t4=timeGetTime();
-#endif
 
 	if (!kPCBlockerList.IsEmpty())
 	{
@@ -637,31 +521,8 @@ void CMapOutdoor::__CollectCollisionPCBlocker(D3DXVECTOR3& v3Eye, D3DXVECTOR3& v
 					m_PCBlockerVector.push_back(pObjInstEach);
 		}
 	}
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t5=timeGetTime();
-#endif
+
 	std::sort(m_PCBlockerVector.begin(), m_PCBlockerVector.end(), FPCBlockerDistanceSort(v3Eye));
-
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t6=timeGetTime();
-
-	static FILE* fp=fopen("perf_pbc_collect.txt", "w");
-
-	if (t3-t1>5)
-	{
-		fprintf(fp, "PBC.Total %d (Time %f)\n", t3-t1, ELTimer_GetMSec()/1000.0f);
-		fprintf(fp, "PBC.INIT %d\n", t2-t1);
-		fprintf(fp, "PBC.SET %d\n", t3-t2);
-		fprintf(fp, "PBC.CALC %d\n", t4-t2);
-		fprintf(fp, "PBC.PUSH %d\n", t5-t2);
-		fprintf(fp, "PBC.SORT %d (%d)\n", t6-t2, m_PCBlockerVector.size());
-		fprintf(fp, "PBC.Count (Collect %d, Over %d, Check %d)\n", 
-			kPCBlockerList.m_dwBlockerCount,
-			kPCBlockerList.m_dwBlockerOverCount,
-			kPCBlockerList.m_dwInstCount);
-		fflush(fp);
-	}
-#endif
 }
 
 void CMapOutdoor::__CollectCollisionShadowReceiver(D3DXVECTOR3& v3Target, D3DXVECTOR3& v3Light)

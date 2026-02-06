@@ -328,31 +328,11 @@ void CPythonBackground::Update(float fCenterX, float fCenterY, float fCenterZ)
 {
 	if (!IsMapReady())
 		return;
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t1=ELTimer_GetMSec();
-#endif
-	UpdateMap(fCenterX, fCenterY, fCenterZ);
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t2=ELTimer_GetMSec();
-#endif
-	UpdateAroundAmbience(fCenterX, fCenterY, fCenterZ);
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t3=ELTimer_GetMSec();
-#endif
-	m_SnowEnvironment.Update(D3DXVECTOR3(fCenterX, -fCenterY, fCenterZ));
 
-#ifdef __PERFORMANCE_CHECKER__
-	{
-		static FILE* fp=fopen("perf_bg_update.txt", "w");
-		if (t3-t1>5)
-		{
-			fprintf(fp, "BG.Total %d (Time %f)\n", t3-t1, ELTimer_GetMSec()/1000.0f);
-			fprintf(fp, "BG.UpdateMap %d\n", t2-t1);
-			fprintf(fp, "BG.UpdateAmb %d\n", t3-t2);
-			fflush(fp);
-		}
-	}
-#endif
+	UpdateMap(fCenterX, fCenterY, fCenterZ);
+	UpdateAroundAmbience(fCenterX, fCenterY, fCenterZ);
+
+	m_SnowEnvironment.Update(D3DXVECTOR3(fCenterX, -fCenterY, fCenterZ));
 
 	// Portal Process
 	CMapOutdoor& rkMap=GetMapOutdoorRef();

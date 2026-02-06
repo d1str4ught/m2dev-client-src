@@ -263,32 +263,6 @@ void CMapOutdoor::SetInverseViewAndDynamicShaodwMatrices()
 
 void CMapOutdoor::OnRender()
 {
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t1=ELTimer_GetMSec();
-	SetInverseViewAndDynamicShaodwMatrices();
-
-	SetBlendOperation();
-	DWORD t2=ELTimer_GetMSec();
-	RenderArea();
-	DWORD t3=ELTimer_GetMSec();
-	if (!m_bEnableTerrainOnlyForHeight)
-		RenderTerrain();
-	DWORD t4=ELTimer_GetMSec();
-	RenderTree();
-	DWORD t5=ELTimer_GetMSec();
-	DWORD tEnd=ELTimer_GetMSec();
-
-	if (tEnd-t1<7)
-		return;
-
-	static FILE* fp=fopen("perf_map_render.txt", "w");
- 	fprintf(fp, "MAP.Total %d (Time %d)\n", tEnd-t1, ELTimer_GetMSec());
-	fprintf(fp, "MAP.ENV %d\n", t2-t1);
-	fprintf(fp, "MAP.OBJ %d\n", t3-t2);
-	fprintf(fp, "MAP.TRN %d\n", t4-t3);
-	fprintf(fp, "MAP.TRE %d\n", t5-t4);
-
-#else
 	SetInverseViewAndDynamicShaodwMatrices();
 
 	SetBlendOperation();
@@ -297,7 +271,6 @@ void CMapOutdoor::OnRender()
 	if (!m_bEnableTerrainOnlyForHeight)
 		RenderTerrain();
 	RenderBlendArea();
-#endif
 }
 
 struct FAreaRenderShadow

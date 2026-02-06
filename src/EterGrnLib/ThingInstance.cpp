@@ -778,34 +778,8 @@ void CGraphicThingInstance::UpdateTime()
 
 void CGraphicThingInstance::OnUpdate()
 {
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t1=timeGetTime();
-#endif
 	UpdateLODLevel();
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t2=timeGetTime();
-#endif
 	UpdateTime();
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t3=timeGetTime();
-#endif
-
-#ifdef __PERFORMANCE_CHECKER__
-	{
-		static FILE* fp=fopen("perf_thing_onupdate.txt", "w");
-
-		if (t3-t1>3)
-		{
-			fprintf(fp, "GTU.Total %d (Time %f)\n", 
-				t3-t1, ELTimer_GetMSec()/1000.0f);
-			fprintf(fp, "GTU.CAL %d\n", t2-t1);
-			fprintf(fp, "GTU.UP %d\n", t3-t2);
-			fprintf(fp, "-------------------------------- \n");
-			fflush(fp);
-		}
-		fflush(fp);
-	}
-#endif
 }
 
 void CGraphicThingInstance::OnRender()

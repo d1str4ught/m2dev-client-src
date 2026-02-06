@@ -537,23 +537,6 @@ void CGrannyLODController::UpdateTime(float fElapsedTime)
 	m_pCurrentModelInstance->UpdateLocalTime(fElapsedTime);
 
 	//DWORD t4=timeGetTime();
-
-#ifdef __PERFORMANCE_CHECKER__
-	{
-		static FILE* fp=fopen("perf_lod_update.txt", "w");
-
-		if (t4-t1>3)
-		{
-			fprintf(fp, "LOD.Total %d (Time %f)\n", t4-t1, timeGetTime()/1000.0f);
-			fprintf(fp, "LOD.SMI %d\n", t2-t1);
-			fprintf(fp, "LOD.UP %d\n", t3-t2);
-			fprintf(fp, "LOD.UL %d\n", t4-t3);
-			fprintf(fp, "-------------------------------- \n");
-			fflush(fp);
-		}			
-		fflush(fp);
-	}
-#endif
 }
 
 void CGrannyLODController::SetCurrentModelInstance(CGrannyModelInstance * pgrnModelInstance)

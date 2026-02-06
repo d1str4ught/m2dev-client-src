@@ -74,51 +74,18 @@ void CActorInstance::TEMP_Update()
 
 void CActorInstance::OnUpdate()
 {
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t1 = ELTimer_GetMSec();
-#endif
-
 	if (!IsParalysis())
 		CGraphicThingInstance::OnUpdate();
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t2 = ELTimer_GetMSec();
-#endif
 
 	UpdateAttachingInstances();
 
-// celine skill fix
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t3 = ELTimer_GetMSec();
-#endif
+	// celine skill fix
 
 	if (__IsInSplashTime())
 		UpdateSplashArea();
-// END OF celine skill fix
-
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t4 = ELTimer_GetMSec();
-#endif
+	// END OF celine skill fix
 
 	__BlendAlpha_Update();
-
-#ifdef __PERFORMANCE_CHECKER__
-	DWORD t5 = ELTimer_GetMSec();
-	{
-		static FILE* fp=fopen("perf_actor_update2.txt", "w");
-
-		if (t4-t1>3)
-		{
-			fprintf(fp, "AIU2.Total %d (Time %f)\n", 
-				t4-t1, ELTimer_GetMSec()/1000.0f);
-			fprintf(fp, "AIU2.GU %d\n", t2-t1);
-			fprintf(fp, "AIU2.UAI %d\n", t3-t2);
-			fprintf(fp, "AIU2.BAU %d\n", t4-t3);
-			fprintf(fp, "-------------------------------- \n");
-			fflush(fp);
-		}
-		fflush(fp);
-	}
-#endif
 }
 
 
