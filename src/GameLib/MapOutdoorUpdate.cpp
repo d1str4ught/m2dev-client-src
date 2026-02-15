@@ -112,7 +112,7 @@ bool CMapOutdoor::Update(float fX, float fY, float fZ)
 #ifdef __PERFORMANCE_CHECKER__
 	DWORD t3=ELTimer_GetMSec();
 #endif
-	CSpeedTreeForestDirectX8::Instance().UpdateSystem(CTimer::Instance().GetCurrentSecond());
+	CSpeedTreeForestDirectX::Instance().UpdateSystem(CTimer::Instance().GetCurrentSecond());
 #ifdef __PERFORMANCE_CHECKER__
 	DWORD t4=ELTimer_GetMSec();
 #endif

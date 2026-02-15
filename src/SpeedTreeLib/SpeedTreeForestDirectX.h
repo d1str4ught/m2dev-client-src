@@ -40,12 +40,12 @@
 #include "SpeedTreeMaterial.h"
 
 ///////////////////////////////////////////////////////////////////////  
-//	class CSpeedTreeForestDirectX8 declaration
-class CSpeedTreeForestDirectX8 : public CSpeedTreeForest, public CGraphicBase, public CSingleton<CSpeedTreeForestDirectX8>
+//	class CSpeedTreeForestDirectX declaration
+class CSpeedTreeForestDirectX : public CSpeedTreeForest, public CGraphicBase, public CSingleton<CSpeedTreeForestDirectX>
 {
 	public:
-		CSpeedTreeForestDirectX8();
-		virtual ~CSpeedTreeForestDirectX8();
+		CSpeedTreeForestDirectX();
+		virtual ~CSpeedTreeForestDirectX();
 
 		void			UploadWindMatrix(unsigned int uiLocation, const float* pMatrix) const;
 		void			UpdateCompundMatrix(const D3DXVECTOR3 & c_rEyeVec, const D3DXMATRIX & c_rmatView, const D3DXMATRIX& c_rmatProj);

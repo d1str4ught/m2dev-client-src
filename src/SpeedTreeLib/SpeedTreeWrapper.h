@@ -92,8 +92,8 @@ public:
 	virtual void				SetPosition(float x, float y, float z);
 	virtual void				CalculateBBox();
 
-	virtual void				OnRender(); // Render ½Ã¿¡ ¸Þ¼Òµå, ±×·¯³ª ÇÁ¸®ºä³ª Æ¯¼öÇÑ °æ¿ì¿¡¸¸ Á÷Á¢ Render ÄÝÀ» ºÎ¸£¸ç 
-											// ±× ÀÌ¿Ü¿¡´Â RenderBranches, RenderFronds µîÀÇ ¸Þ¼Òµå¸¦ CSpeedTreeForest¿¡¼­ È£ÃâÇÑ´Ù.
+	virtual void				OnRender(); // Render
+
 	virtual void				OnBlendRender() {}
 	virtual void				OnRenderToShadowMap() {}
 	virtual void				OnRenderShadow() {}

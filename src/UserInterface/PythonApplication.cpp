@@ -1127,8 +1127,7 @@ void CPythonApplication::Destroy()
 
 	m_grpDevice.Destroy();
 
-	// FIXME : ¸¸µé¾îÁ® ÀÖÁö ¾ÊÀ½ - [levites]
-	//CSpeedTreeForestDirectX8::Instance().Clear();
+	//CSpeedTreeForestDirectX::Instance().Clear();
 
 	CAttributeInstance::DestroySystem();
 	CTextFileLoader::DestroySystem();

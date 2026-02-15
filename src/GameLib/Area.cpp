@@ -3,7 +3,7 @@
 #include "EterLib/ResourceManager.h"
 #include "EterLib/StateManager.h"
 #include "EffectLib/EffectManager.h"
-#include "SpeedTreeLib/SpeedTreeForestDirectX8.h"
+#include "SpeedTreeLib/SpeedTreeForestDirectX.h"
 #include "EterBase/Timer.h"
 
 #include "Area.h"
@@ -550,7 +550,7 @@ void CArea::__SetObjectInstance_SetTree(TObjectInstance * pObjectInstance, const
 
 void CArea::TObjectInstance::SetTree(float x, float y, float z, DWORD dwTreeCRC, const char* c_szTreeName)
 {
-	CSpeedTreeForestDirectX8& rkForest=CSpeedTreeForestDirectX8::Instance();
+	CSpeedTreeForestDirectX& rkForest=CSpeedTreeForestDirectX::Instance();
 	pTree=rkForest.CreateInstance(x, y, z, dwTreeCRC, c_szTreeName);
 	dwType = prt::PROPERTY_TYPE_TREE;
 }
@@ -1106,7 +1106,7 @@ void CArea::__Clear_DestroyObjectInstance(TObjectInstance * pObjectInstance)
 	if (pObjectInstance->pTree)
 	{
 		pObjectInstance->pTree->Clear();
-		CSpeedTreeForestDirectX8::Instance().DeleteInstance(pObjectInstance->pTree);
+		CSpeedTreeForestDirectX::Instance().DeleteInstance(pObjectInstance->pTree);
 		pObjectInstance->pTree = NULL;
 	}
 

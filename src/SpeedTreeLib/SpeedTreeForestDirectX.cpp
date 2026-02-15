@@ -1,5 +1,5 @@
 ///////////////////////////////////////////////////////////////////////  
-//	CSpeedTreeForestDirectX8 Class
+//	CSpeedTreeForestDirectX Class
 //
 //	(c) 2003 IDV, Inc.
 //
@@ -38,29 +38,29 @@
 #include "EterLib/StateManager.h"
 #include "EterLib/Camera.h"
 
-#include "SpeedTreeForestDirectX8.h"
+#include "SpeedTreeForestDirectX.h"
 #include "SpeedTreeConfig.h"
 #include "VertexShaders.h"
 
 ///////////////////////////////////////////////////////////////////////  
-//	CSpeedTreeForestDirectX8::CSpeedTreeForestDirectX8
+//	CSpeedTreeForestDirectX::CSpeedTreeForestDirectX
 
-CSpeedTreeForestDirectX8::CSpeedTreeForestDirectX8()  : m_dwBranchVertexShader(nullptr), m_pLeafVertexShaderDecl(nullptr), m_pLeafVertexShader(nullptr)
+CSpeedTreeForestDirectX::CSpeedTreeForestDirectX()  : m_dwBranchVertexShader(nullptr), m_pLeafVertexShaderDecl(nullptr), m_pLeafVertexShader(nullptr)
 {
 }
 
 
 ///////////////////////////////////////////////////////////////////////  
-//	CSpeedTreeForestDirectX8::~CSpeedTreeForestDirectX8
+//	CSpeedTreeForestDirectX::~CSpeedTreeForestDirectX
 
-CSpeedTreeForestDirectX8::~CSpeedTreeForestDirectX8()
+CSpeedTreeForestDirectX::~CSpeedTreeForestDirectX()
 {
 }
 
 
 ///////////////////////////////////////////////////////////////////////  
-//	CSpeedTreeForestDirectX8::InitVertexShaders
-bool CSpeedTreeForestDirectX8::InitVertexShaders(void)
+//	CSpeedTreeForestDirectX::InitVertexShaders
+bool CSpeedTreeForestDirectX::InitVertexShaders(void)
 {
 	// load the vertex shaders
 	if (!m_dwBranchVertexShader)
@@ -78,7 +78,7 @@ bool CSpeedTreeForestDirectX8::InitVertexShaders(void)
 	return false;
 }
 
-bool CSpeedTreeForestDirectX8::SetRenderingDevice(LPDIRECT3DDEVICE9 lpDevice)
+bool CSpeedTreeForestDirectX::SetRenderingDevice(LPDIRECT3DDEVICE9 lpDevice)
 {
 	m_pDx = lpDevice;
 
@@ -108,14 +108,14 @@ bool CSpeedTreeForestDirectX8::SetRenderingDevice(LPDIRECT3DDEVICE9 lpDevice)
 }
 
 ///////////////////////////////////////////////////////////////////////  
-//	CSpeedTreeForestDirectX8::UploadWindMatrix
+//	CSpeedTreeForestDirectX::UploadWindMatrix
 
-void CSpeedTreeForestDirectX8::UploadWindMatrix(UINT uiLocation, const float* pMatrix) const
+void CSpeedTreeForestDirectX::UploadWindMatrix(UINT uiLocation, const float* pMatrix) const
 {
 	STATEMANAGER.SetVertexShaderConstant(uiLocation, pMatrix, 4);
 }
 
-void CSpeedTreeForestDirectX8::UpdateCompundMatrix(const D3DXVECTOR3& c_rEyeVec, const D3DXMATRIX& c_rmatView, const D3DXMATRIX& c_rmatProj)
+void CSpeedTreeForestDirectX::UpdateCompundMatrix(const D3DXVECTOR3& c_rEyeVec, const D3DXMATRIX& c_rmatView, const D3DXMATRIX& c_rmatProj)
 {
     // setup composite matrix for shader
 	D3DXMATRIX matBlend;
@@ -135,9 +135,9 @@ void CSpeedTreeForestDirectX8::UpdateCompundMatrix(const D3DXVECTOR3& c_rEyeVec,
 }
 
 ///////////////////////////////////////////////////////////////////////  
-//	CSpeedTreeForestDirectX8::Render
+//	CSpeedTreeForestDirectX::Render
 
-void CSpeedTreeForestDirectX8::Render(unsigned long ulRenderBitVector)
+void CSpeedTreeForestDirectX::Render(unsigned long ulRenderBitVector)
 {
 	UpdateSystem(CTimer::Instance().GetCurrentSecond());
 

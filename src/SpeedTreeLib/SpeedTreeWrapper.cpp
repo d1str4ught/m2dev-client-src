@@ -44,7 +44,7 @@
 #include "EterLib/StateManager.h"
 
 #include "SpeedTreeConfig.h"
-#include "SpeedTreeForestDirectX8.h"
+#include "SpeedTreeForestDirectX.h"
 #include "SpeedTreeWrapper.h"
 #include "VertexShaders.h"
 
@@ -92,7 +92,7 @@ void CSpeedTreeWrapper::SetVertexShaders(LPDIRECT3DVERTEXDECLARATION9 pBranchVer
 void CSpeedTreeWrapper::OnRenderPCBlocker()
 {
 	if (!ms_dwBranchVertexShader || !ms_pLeafVertexShaderDecl || !ms_pLeafVertexShader)
-		CSpeedTreeForestDirectX8::Instance().EnsureVertexShaders();
+		CSpeedTreeForestDirectX::Instance().EnsureVertexShaders();
 
 	if (ms_dwBranchVertexShader == 0)
 	{
@@ -100,13 +100,12 @@ void CSpeedTreeWrapper::OnRenderPCBlocker()
 		//LogBox("Vertex Shader not assigned. You must call CSpeedTreeWrapper::SetVertexShader for this");
 	}
 	
-	CSpeedTreeForestDirectX8::Instance().UpdateSystem(ELTimer_GetMSec() / 1000.0f);
+	CSpeedTreeForestDirectX::Instance().UpdateSystem(ELTimer_GetMSec() / 1000.0f);
 	
-	// ï¿½Ï³ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ LOD ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	m_pSpeedTree->SetLodLevel(1.0f);
 	//Advance();
 	
-	CSpeedTreeForestDirectX8::Instance().UpdateCompundMatrix(CCameraManager::Instance().GetCurrentCamera()->GetEye(), ms_matView, ms_matProj);
+	CSpeedTreeForestDirectX::Instance().UpdateCompundMatrix(CCameraManager::Instance().GetCurrentCamera()->GetEye(), ms_matView, ms_matProj);
 	
 	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1,	D3DTA_TEXTURE);
 	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG2,	D3DTA_DIFFUSE);
@@ -241,7 +240,7 @@ void CSpeedTreeWrapper::OnRenderPCBlocker()
 void CSpeedTreeWrapper::OnRender()
 {
 	if (!ms_dwBranchVertexShader || !ms_pLeafVertexShaderDecl || !ms_pLeafVertexShader)
-		CSpeedTreeForestDirectX8::Instance().EnsureVertexShaders();
+		CSpeedTreeForestDirectX::Instance().EnsureVertexShaders();
 
 	if (ms_dwBranchVertexShader == 0)
 	{
@@ -249,13 +248,12 @@ void CSpeedTreeWrapper::OnRender()
 		//LogBox("Vertex Shader not assigned. You must call CSpeedTreeWrapper::SetVertexShader for this");
 	}
 	
-	CSpeedTreeForestDirectX8::Instance().UpdateSystem(ELTimer_GetMSec() / 1000.0f);
+	CSpeedTreeForestDirectX::Instance().UpdateSystem(ELTimer_GetMSec() / 1000.0f);
 	
-	// ï¿½Ï³ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ LOD ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 	m_pSpeedTree->SetLodLevel(1.0f);
 	//Advance();
 	
-	CSpeedTreeForestDirectX8::Instance().UpdateCompundMatrix(CCameraManager::Instance().GetCurrentCamera()->GetEye(), ms_matView, ms_matProj);
+	CSpeedTreeForestDirectX::Instance().UpdateCompundMatrix(CCameraManager::Instance().GetCurrentCamera()->GetEye(), ms_matView, ms_matProj);
 	
 	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1,	D3DTA_TEXTURE);
 	STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG2,	D3DTA_DIFFUSE);

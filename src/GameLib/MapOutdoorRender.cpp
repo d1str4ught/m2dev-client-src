@@ -238,7 +238,7 @@ void CMapOutdoor::RenderCloud()
 void CMapOutdoor::RenderTree()
 {
 	if (IsVisiblePart(PART_TREE))
-		CSpeedTreeForestDirectX8::Instance().Render();
+		CSpeedTreeForestDirectX::Instance().Render();
 }
 
 void CMapOutdoor::SetInverseViewAndDynamicShaodwMatrices()

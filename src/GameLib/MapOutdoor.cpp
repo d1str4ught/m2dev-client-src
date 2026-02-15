@@ -209,7 +209,7 @@ bool CMapOutdoor::Destroy()
 
 	m_rkList_kGuildArea.clear();
 	m_kPool_kMonsterAreaInfo.Destroy();
-	CSpeedTreeForestDirectX8::Instance().Clear();
+	CSpeedTreeForestDirectX::Instance().Clear();
 
 	return true;
 }
@@ -239,7 +239,7 @@ void CMapOutdoor::OnBeginEnvironment()
 	if (!mc_pEnvironmentData)
 		return;
 
-	CSpeedTreeForestDirectX8& rkForest=CSpeedTreeForestDirectX8::Instance();
+	CSpeedTreeForestDirectX& rkForest=CSpeedTreeForestDirectX::Instance();
 	rkForest.SetFog(
 		mc_pEnvironmentData->GetFogNearDistance(), 
 		mc_pEnvironmentData->GetFogFarDistance()
@@ -1251,7 +1251,7 @@ void CMapOutdoor::XMasTree_Destroy()
 {
 	if (m_kXMas.m_pkTree)
 	{
-		CSpeedTreeForestDirectX8& rkForest=CSpeedTreeForestDirectX8::Instance();
+		CSpeedTreeForestDirectX& rkForest=CSpeedTreeForestDirectX::Instance();
 		m_kXMas.m_pkTree->Clear();
 		rkForest.DeleteInstance(m_kXMas.m_pkTree);
 		m_kXMas.m_pkTree=NULL;
@@ -1269,7 +1269,7 @@ void CMapOutdoor::__XMasTree_Create(float x, float y, float z, const char* c_szT
 	assert(NULL==m_kXMas.m_pkTree);
 	assert(-1==m_kXMas.m_iEffectID);
 
-	CSpeedTreeForestDirectX8& rkForest=CSpeedTreeForestDirectX8::Instance();
+	CSpeedTreeForestDirectX& rkForest=CSpeedTreeForestDirectX::Instance();
 	DWORD dwCRC32 = GetCaseCRC32(c_szTreeName, strlen(c_szTreeName));
 	m_kXMas.m_pkTree=rkForest.CreateInstance(x, y, z, dwCRC32, c_szTreeName);
 
