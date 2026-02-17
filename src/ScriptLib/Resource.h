@@ -4,21 +4,19 @@
 #include "EterLib/Resource.h"
 #include "EterLib/ResourceManager.h"
 
-enum EResourceTypes
-{
-	RES_TYPE_UNKNOWN,
+enum EResourceTypes {
+  RES_TYPE_UNKNOWN,
 };
 
-class CPythonResource : public CSingleton<CPythonResource>
-{
-	public:
-		CPythonResource();
-		virtual ~CPythonResource();
-		
-		void Destroy();
+class CPythonResource : public CSingleton<CPythonResource> {
+public:
+  CPythonResource();
+  virtual ~CPythonResource();
 
-		void DumpFileList(const char * c_szFileName);
+  void Destroy();
 
-	protected:
-		CResourceManager m_resManager;
+  void DumpFileList(const char *c_szFileName);
+
+protected:
+  CResourceManager m_resManager;
 };

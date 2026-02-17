@@ -2,39 +2,38 @@
 
 #include "GrpBase.h"
 
-class CGraphicIndexBuffer : public CGraphicBase
-{
+class CGraphicIndexBuffer : public CGraphicBase {
 public:
-	CGraphicIndexBuffer();
-	virtual ~CGraphicIndexBuffer();
+  CGraphicIndexBuffer();
+  virtual ~CGraphicIndexBuffer();
 
-	void Destroy();
-	bool Create(int idxCount, D3DFORMAT d3dFmt);
-	bool Create(int faceCount, TFace* faces);
+  void Destroy();
+  bool Create(int idxCount, D3DFORMAT d3dFmt);
+  bool Create(int faceCount, TFace *faces);
 
-	bool CreateDeviceObjects();
-	void DestroyDeviceObjects();
+  bool CreateDeviceObjects();
+  void DestroyDeviceObjects();
 
-	bool Copy(int bufSize, const void* srcIndices);
+  bool Copy(int bufSize, const void *srcIndices);
 
-	bool Lock(void** pretIndices) const;
-	void Unlock() const;
+  bool Lock(void **pretIndices) const;
+  void Unlock() const;
 
-	bool Lock(void** pretIndices);
-	void Unlock();
+  bool Lock(void **pretIndices);
+  void Unlock();
 
-	void SetIndices(int startIndex = 0) const;
+  void SetIndices(int startIndex = 0) const;
 
-	LPDIRECT3DINDEXBUFFER9 GetD3DIndexBuffer() const;
+  LPDIRECT3DINDEXBUFFER9 GetD3DIndexBuffer() const;
 
-	int GetIndexCount() const { return m_iidxCount; }
-
-protected:
-	void Initialize();
+  int GetIndexCount() const { return m_iidxCount; }
 
 protected:
-	LPDIRECT3DINDEXBUFFER9	m_lpd3dIdxBuf;
-	DWORD					m_dwBufferSize;
-	D3DFORMAT				m_d3dFmt;
-	int						m_iidxCount;
+  void Initialize();
+
+protected:
+  LPDIRECT3DINDEXBUFFER9 m_lpd3dIdxBuf;
+  DWORD m_dwBufferSize;
+  D3DFORMAT m_d3dFmt;
+  int m_iidxCount;
 };

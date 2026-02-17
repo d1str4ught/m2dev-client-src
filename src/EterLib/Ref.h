@@ -5,100 +5,71 @@
 
 #include <assert.h>
 
-template<typename T> class CRef
-{
-	public:
-		struct FClear
-		{
-			void operator() (CRef<T>& rRef)
-			{
-				rRef.Clear();
-			}
-		};
+template <typename T> class CRef {
+public:
+  struct FClear {
+    void operator()(CRef<T> &rRef) { rRef.Clear(); }
+  };
 
-	public:
-		CRef() : m_pObject(NULL)
-		{
-		}
-		
-		CRef(CReferenceObject* pObject)
-		{
-			m_pObject = NULL;
-			Initialize(pObject);
-		}
+public:
+  CRef() : m_pObject(NULL) {}
 
-		CRef(const CRef& c_rRef)
-		{
-			m_pObject = NULL;
-			Initialize(c_rRef.m_pObject);			
-		}
+  CRef(CReferenceObject *pObject) {
+    m_pObject = NULL;
+    Initialize(pObject);
+  }
 
-		~CRef()
-		{
-			Clear();
-		}
-		
-		void operator = (CReferenceObject* pObject)
-		{
-			SetPointer(pObject);
-		}
+  CRef(const CRef &c_rRef) {
+    m_pObject = NULL;
+    Initialize(c_rRef.m_pObject);
+  }
 
-		void operator = (const CRef& c_rRef)
-		{
-			SetPointer(c_rRef.m_pObject);			
-		}
+  ~CRef() { Clear(); }
 
-		void Clear()
-		{
-			if (m_pObject)
-			{
-				m_pObject->Release();
-				m_pObject = NULL;
-			}
-		}
+  void operator=(CReferenceObject *pObject) { SetPointer(pObject); }
 
-		bool IsNull() const
-		{
-			return m_pObject == NULL ? true : false;
-		}
+  void operator=(const CRef &c_rRef) { SetPointer(c_rRef.m_pObject); }
 
-		void SetPointer(CReferenceObject* pObject)
-		{
-			CReferenceObject* pOldObject = m_pObject;
+  void Clear() {
+    if (m_pObject) {
+      m_pObject->Release();
+      m_pObject = NULL;
+    }
+  }
 
-			m_pObject = pObject;
+  bool IsNull() const { return m_pObject == NULL ? true : false; }
 
-			if (m_pObject)
-				m_pObject->AddReference();
+  void SetPointer(CReferenceObject *pObject) {
+    CReferenceObject *pOldObject = m_pObject;
 
-			if (pOldObject)
-				pOldObject->Release();
-		}
+    m_pObject = pObject;
 
-		T* GetPointer() const
-		{
-			return static_cast<T*>(m_pObject);
-		}
+    if (m_pObject)
+      m_pObject->AddReference();
 
-		T* operator->() const
-		{
-			assert(m_pObject != NULL);
-			return static_cast<T*>(m_pObject);
-		}
-				
-	private:
-		void Initialize(CReferenceObject* pObject)
-		{
-			assert(m_pObject == NULL);
+    if (pOldObject)
+      pOldObject->Release();
+  }
 
-			m_pObject = pObject;
+  T *GetPointer() const { return static_cast<T *>(m_pObject); }
 
-			if (m_pObject)
-				m_pObject->AddReference();
-		}
+  T *operator->() const {
+    assert(m_pObject != NULL);
+    return static_cast<T *>(m_pObject);
+  }
 
-	private:
-		CReferenceObject* m_pObject;
+private:
+  void Initialize(CReferenceObject *pObject) {
+    assert(m_pObject == NULL);
+
+    m_pObject = pObject;
+
+    if (m_pObject)
+      m_pObject->AddReference();
+  }
+
+private:
+  CReferenceObject *m_pObject;
 };
 
 #endif

@@ -4,29 +4,28 @@
 #include "Ref.h"
 #include "GrpFontTexture.h"
 
-class CGraphicText : public CResource
-{
-	public:
-		typedef CRef<CGraphicText> TRef;
-		
-	public:
-		static TType Type();
-		
-	public:
-		CGraphicText(const char* c_szFileName);
-		virtual ~CGraphicText();
-		
-		virtual bool			CreateDeviceObjects();
-		virtual void			DestroyDeviceObjects();
+class CGraphicText : public CResource {
+public:
+  typedef CRef<CGraphicText> TRef;
 
-		CGraphicFontTexture *	GetFontTexturePointer();
+public:
+  static TType Type();
 
-	protected:
-		bool		OnLoad(int iSize, const void * c_pvBuf);
-		void		OnClear();
-		bool		OnIsEmpty() const;
-		bool		OnIsType(TType type);		
-		
-	protected:
-		CGraphicFontTexture m_fontTexture;
+public:
+  CGraphicText(const char *c_szFileName);
+  virtual ~CGraphicText();
+
+  virtual bool CreateDeviceObjects();
+  virtual void DestroyDeviceObjects();
+
+  CGraphicFontTexture *GetFontTexturePointer();
+
+protected:
+  bool OnLoad(int iSize, const void *c_pvBuf);
+  void OnClear();
+  bool OnIsEmpty() const;
+  bool OnIsType(TType type);
+
+protected:
+  CGraphicFontTexture m_fontTexture;
 };

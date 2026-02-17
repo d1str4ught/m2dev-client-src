@@ -1,304 +1,273 @@
 #pragma once
 
-#pragma warning(disable:4786)
+#pragma warning(disable : 4786)
 
 #include <deque>
 #include "Thing.h"
 #include "ModelInstance.h"
 
-class CGrannyLODController : public CGraphicBase
-{
-	public:
-		static void SetMinLODMode(bool isEnable);		
+class CGrannyLODController : public CGraphicBase {
+public:
+  static void SetMinLODMode(bool isEnable);
 
-	public:
-		struct FSetLocalTime
-		{
-			float fLocalTime;
-			void operator() (CGrannyLODController * pController)
-			{
-				pController->SetLocalTime(fLocalTime);
-			}
-		};
+public:
+  struct FSetLocalTime {
+    float fLocalTime;
+    void operator()(CGrannyLODController *pController) {
+      pController->SetLocalTime(fLocalTime);
+    }
+  };
 
-		struct FUpdateTime
-		{
-			float fElapsedTime;
-			
-			void operator() (CGrannyLODController * pController)
-			{
-				if (pController->isModelInstance())
-					pController->UpdateTime(fElapsedTime);
-			}
-		};
+  struct FUpdateTime {
+    float fElapsedTime;
 
-		struct FUpdateLODLevel
-		{
-			float fDistanceFromCenter;
-			float fDistanceFromCamera;
+    void operator()(CGrannyLODController *pController) {
+      if (pController->isModelInstance())
+        pController->UpdateTime(fElapsedTime);
+    }
+  };
 
-			void operator() (CGrannyLODController * pController)
-			{
-				if (pController->isModelInstance())
-					pController->UpdateLODLevel(fDistanceFromCenter, fDistanceFromCamera);
-			}
-		};
+  struct FUpdateLODLevel {
+    float fDistanceFromCenter;
+    float fDistanceFromCamera;
 
-		struct FRenderWithOneTexture
-		{
-			void operator() (CGrannyLODController * pController)
-			{
-				if (pController->isModelInstance())
-					pController->RenderWithOneTexture();
-			}
-		};
+    void operator()(CGrannyLODController *pController) {
+      if (pController->isModelInstance())
+        pController->UpdateLODLevel(fDistanceFromCenter, fDistanceFromCamera);
+    }
+  };
 
-		struct FBlendRenderWithOneTexture
-		{
-			void operator() (CGrannyLODController * pController)
-			{
-				if (pController->isModelInstance())
-					pController->BlendRenderWithOneTexture();
-			}
-		};
+  struct FRenderWithOneTexture {
+    void operator()(CGrannyLODController *pController) {
+      if (pController->isModelInstance())
+        pController->RenderWithOneTexture();
+    }
+  };
 
-		struct FRenderWithTwoTexture
-		{
-			void operator() (CGrannyLODController * pController)
-			{
-				if (pController->isModelInstance())
-					pController->RenderWithTwoTexture();
-			}
-		};
+  struct FBlendRenderWithOneTexture {
+    void operator()(CGrannyLODController *pController) {
+      if (pController->isModelInstance())
+        pController->BlendRenderWithOneTexture();
+    }
+  };
 
-		struct FBlendRenderWithTwoTexture
-		{
-			void operator() (CGrannyLODController * pController)
-			{
-				if (pController->isModelInstance())
-					pController->BlendRenderWithTwoTexture();
-			}
-		};
+  struct FRenderWithTwoTexture {
+    void operator()(CGrannyLODController *pController) {
+      if (pController->isModelInstance())
+        pController->RenderWithTwoTexture();
+    }
+  };
 
-		struct FRenderToShadowMap
-		{
-			void operator() (CGrannyLODController * pController)
-			{
-				if (pController->isModelInstance())
-					pController->RenderToShadowMap();
-			}
-		};
+  struct FBlendRenderWithTwoTexture {
+    void operator()(CGrannyLODController *pController) {
+      if (pController->isModelInstance())
+        pController->BlendRenderWithTwoTexture();
+    }
+  };
 
-		struct FRenderShadow
-		{
-			void operator() (CGrannyLODController * pController)
-			{
-				if (pController->isModelInstance())
-					pController->RenderShadow();
-			}
-		};
-		
-		struct FDeform
-		{
-			const D3DXMATRIX * mc_pWorldMatrix;
-			
-			void operator() (CGrannyLODController * pController)
-			{
-				if (pController->isModelInstance())
-					pController->Deform(mc_pWorldMatrix);
-			}
-		};
-		struct FDeformNoSkin
-		{
-			const D3DXMATRIX * mc_pWorldMatrix;
-			
-			void operator() (CGrannyLODController * pController)
-			{
-				if (pController->isModelInstance())
-					pController->DeformNoSkin(mc_pWorldMatrix);
-			}
-		};
-		struct FDeformAll
-		{
-			const D3DXMATRIX * mc_pWorldMatrix;
-			
-			void operator() (CGrannyLODController * pController)
-			{
-				if (pController->isModelInstance())
-					pController->DeformAll(mc_pWorldMatrix);
-			}
-		};
+  struct FRenderToShadowMap {
+    void operator()(CGrannyLODController *pController) {
+      if (pController->isModelInstance())
+        pController->RenderToShadowMap();
+    }
+  };
 
-		struct FCreateDeviceObjects
-		{
-			void operator() (CGrannyLODController * pController)
-			{
-				if (pController->isModelInstance())
-					pController->CreateDeviceObjects();
-			}
-		};
+  struct FRenderShadow {
+    void operator()(CGrannyLODController *pController) {
+      if (pController->isModelInstance())
+        pController->RenderShadow();
+    }
+  };
 
-		struct FDestroyDeviceObjects
-		{
-			void operator() (CGrannyLODController * pController)
-			{
-				if (pController->isModelInstance())
-					pController->DestroyDeviceObjects();
-			}
-		};
+  struct FDeform {
+    const D3DXMATRIX *mc_pWorldMatrix;
 
-		struct FBoundBox
-		{
-			D3DXVECTOR3* m_vtMin;
-			D3DXVECTOR3* m_vtMax;
+    void operator()(CGrannyLODController *pController) {
+      if (pController->isModelInstance())
+        pController->Deform(mc_pWorldMatrix);
+    }
+  };
+  struct FDeformNoSkin {
+    const D3DXMATRIX *mc_pWorldMatrix;
 
-			FBoundBox(D3DXVECTOR3 * vtMin, D3DXVECTOR3 * vtMax)
-			{
-				m_vtMin = vtMin;
-				m_vtMax = vtMax;
-			}
+    void operator()(CGrannyLODController *pController) {
+      if (pController->isModelInstance())
+        pController->DeformNoSkin(mc_pWorldMatrix);
+    }
+  };
+  struct FDeformAll {
+    const D3DXMATRIX *mc_pWorldMatrix;
 
-			void operator() (CGrannyLODController * pController)
-			{
-				if (pController->isModelInstance())
-					pController->GetBoundBox(m_vtMin, m_vtMax);
-			}
-		};
+    void operator()(CGrannyLODController *pController) {
+      if (pController->isModelInstance())
+        pController->DeformAll(mc_pWorldMatrix);
+    }
+  };
 
-		struct FResetLocalTime
-		{
-			void operator() (CGrannyLODController * pController)
-			{
-				if (pController->isModelInstance())
-					pController->ResetLocalTime();
-			}
-		};
+  struct FCreateDeviceObjects {
+    void operator()(CGrannyLODController *pController) {
+      if (pController->isModelInstance())
+        pController->CreateDeviceObjects();
+    }
+  };
 
-		struct FReloadTexture
-		{
-			void operator () (CGrannyLODController * pController)
-			{
-				if (pController->isModelInstance())
-					pController->ReloadTexture();
-			}
-		};
+  struct FDestroyDeviceObjects {
+    void operator()(CGrannyLODController *pController) {
+      if (pController->isModelInstance())
+        pController->DestroyDeviceObjects();
+    }
+  };
 
-		struct FSetMotionPointer
-		{
-			const CGrannyMotion *	m_pMotion;
-			float					m_speedRatio;
-			float					m_blendTime;
-			int						m_loopCount;
+  struct FBoundBox {
+    D3DXVECTOR3 *m_vtMin;
+    D3DXVECTOR3 *m_vtMax;
 
-			void operator() (CGrannyLODController * pController)
-			{
-				if (pController->isModelInstance())
-					pController->SetMotionPointer(m_pMotion, m_blendTime, m_loopCount, m_speedRatio);
-			}
-		};
+    FBoundBox(D3DXVECTOR3 *vtMin, D3DXVECTOR3 *vtMax) {
+      m_vtMin = vtMin;
+      m_vtMax = vtMax;
+    }
 
-		struct FChangeMotionPointer
-		{
-			const CGrannyMotion *	m_pMotion;
-			float					m_speedRatio;
-			int						m_loopCount;
+    void operator()(CGrannyLODController *pController) {
+      if (pController->isModelInstance())
+        pController->GetBoundBox(m_vtMin, m_vtMax);
+    }
+  };
 
-			void operator() (CGrannyLODController * pController)
-			{
-				if (pController->isModelInstance())
-					pController->ChangeMotionPointer(m_pMotion, m_loopCount, m_speedRatio);
-			}
-		};
+  struct FResetLocalTime {
+    void operator()(CGrannyLODController *pController) {
+      if (pController->isModelInstance())
+        pController->ResetLocalTime();
+    }
+  };
 
-		struct FEndStopMotionPointer
-		{
-			const CGrannyMotion *	m_pMotion;
+  struct FReloadTexture {
+    void operator()(CGrannyLODController *pController) {
+      if (pController->isModelInstance())
+        pController->ReloadTexture();
+    }
+  };
 
-			void operator () (CGrannyLODController * pController)
-			{
-				if (pController->isModelInstance())
-					pController->SetMotionAtEnd();
-			}
-		};
+  struct FSetMotionPointer {
+    const CGrannyMotion *m_pMotion;
+    float m_speedRatio;
+    float m_blendTime;
+    int m_loopCount;
 
-		CGrannyLODController();
-		virtual ~CGrannyLODController();
+    void operator()(CGrannyLODController *pController) {
+      if (pController->isModelInstance())
+        pController->SetMotionPointer(m_pMotion, m_blendTime, m_loopCount,
+                                      m_speedRatio);
+    }
+  };
 
-		void	Clear();
+  struct FChangeMotionPointer {
+    const CGrannyMotion *m_pMotion;
+    float m_speedRatio;
+    int m_loopCount;
 
-		void	CreateDeviceObjects();
-		void	DestroyDeviceObjects();
+    void operator()(CGrannyLODController *pController) {
+      if (pController->isModelInstance())
+        pController->ChangeMotionPointer(m_pMotion, m_loopCount, m_speedRatio);
+    }
+  };
 
-		void	AddModel(CGraphicThing * pThing, int iSrcModel, CGrannyLODController * pSkelLODController=NULL);		
-		void	AttachModelInstance(CGrannyLODController * pSrcLODController, const char * c_szBoneName);
-		void	DetachModelInstance(CGrannyLODController * pSrcLODController);
-		void	SetLODLimits(float fNearLOD, float fFarLOD);
-		void	SetLODLevel(BYTE bLODLevel);
-		BYTE	GetLODLevel() { return m_bLODLevel; }
-		void	SetMaterialImagePointer(const char* c_szImageName, CGraphicImage* pImage);
-		void	SetMaterialData(const char* c_szImageName, const SMaterialData& c_rkMaterialData);
-		void	SetSpecularInfo(const char* c_szMtrlName, BOOL bEnable, float fPower);
+  struct FEndStopMotionPointer {
+    const CGrannyMotion *m_pMotion;
 
-		void	RenderWithOneTexture();
-		void	RenderWithTwoTexture();
-		void	BlendRenderWithOneTexture();
-		void	BlendRenderWithTwoTexture();
+    void operator()(CGrannyLODController *pController) {
+      if (pController->isModelInstance())
+        pController->SetMotionAtEnd();
+    }
+  };
 
-		void	Update(float fElapsedTime, float fDistanceFromCenter, float fDistanceFromCamera);
-		void	UpdateLODLevel(float fDistanceFromCenter, float fDistanceFromCamera);
-		void	UpdateTime(float fElapsedTime);
-		
-		void	UpdateSkeleton(const D3DXMATRIX * c_pWorldMatrix, float fElapsedTime);
-		void	Deform(const D3DXMATRIX * c_pWorldMatrix);
-		void	DeformNoSkin(const D3DXMATRIX * c_pWorldMatrix);
-		void	DeformAll(const D3DXMATRIX * c_pWorldMatrix);
-		
-		void	RenderToShadowMap();
-		void	RenderShadow();
-		void	ReloadTexture();
+  CGrannyLODController();
+  virtual ~CGrannyLODController();
 
-		void	GetBoundBox(D3DXVECTOR3 * vtMin, D3DXVECTOR3 * vtMax);
-		bool	Intersect(const D3DXMATRIX * c_pMatrix, float * u, float * v, float * t);
+  void Clear();
 
-		void	SetLocalTime(float fLocalTime);
-		void	ResetLocalTime();
+  void CreateDeviceObjects();
+  void DestroyDeviceObjects();
 
-		void	SetMotionPointer(const CGrannyMotion * c_pMotion, float fBlendTime, int iLoopCount, float speedRatio);
-		void	ChangeMotionPointer(const CGrannyMotion * c_pMotion, int iLoopCount, float speedRatio);
-		void	SetMotionAtEnd();
+  void AddModel(CGraphicThing *pThing, int iSrcModel,
+                CGrannyLODController *pSkelLODController = NULL);
+  void AttachModelInstance(CGrannyLODController *pSrcLODController,
+                           const char *c_szBoneName);
+  void DetachModelInstance(CGrannyLODController *pSrcLODController);
+  void SetLODLimits(float fNearLOD, float fFarLOD);
+  void SetLODLevel(BYTE bLODLevel);
+  BYTE GetLODLevel() { return m_bLODLevel; }
+  void SetMaterialImagePointer(const char *c_szImageName,
+                               CGraphicImage *pImage);
+  void SetMaterialData(const char *c_szImageName,
+                       const SMaterialData &c_rkMaterialData);
+  void SetSpecularInfo(const char *c_szMtrlName, BOOL bEnable, float fPower);
 
-		BOOL	isModelInstance();
-		CGrannyModelInstance*	GetModelInstance();
-		bool	HaveBlendThing() { return 0 != GetModelInstance() ? GetModelInstance()->HaveBlendThing() : false; }		// NOTE: GetModelInstance() == 0일 때 클라 크래쉬나는 문제 수정(2012. 05. 07)
+  void RenderWithOneTexture();
+  void RenderWithTwoTexture();
+  void BlendRenderWithOneTexture();
+  void BlendRenderWithTwoTexture();
 
-	protected:
-		void	SetCurrentModelInstance(CGrannyModelInstance * pgrnModelInstance);
-		void	RefreshAttachedModelInstance();
+  void Update(float fElapsedTime, float fDistanceFromCenter,
+              float fDistanceFromCamera);
+  void UpdateLODLevel(float fDistanceFromCenter, float fDistanceFromCamera);
+  void UpdateTime(float fElapsedTime);
 
-		void	__ReserveSharedDeformableVertexBuffer(DWORD deformableVertexCount);
+  void UpdateSkeleton(const D3DXMATRIX *c_pWorldMatrix, float fElapsedTime);
+  void Deform(const D3DXMATRIX *c_pWorldMatrix);
+  void DeformNoSkin(const D3DXMATRIX *c_pWorldMatrix);
+  void DeformAll(const D3DXMATRIX *c_pWorldMatrix);
 
-	protected:
-		float								m_fLODDistance;
-		DWORD								m_dwLODAniFPS;
+  void RenderToShadowMap();
+  void RenderShadow();
+  void ReloadTexture();
 
-		//// Attaching Link Data
-		// Data of Parent Side
-		typedef struct SAttachingModelData
-		{
-			CGrannyLODController *	pkLODController;
-			std::string				strBoneName;
-		} TAttachingModelData;
-		
-		std::vector<TAttachingModelData>	m_AttachedModelDataVector;
-		// Data of Child Side
-		CGrannyLODController *				m_pAttachedParentModel;
+  void GetBoundBox(D3DXVECTOR3 *vtMin, D3DXVECTOR3 *vtMax);
+  bool Intersect(const D3DXMATRIX *c_pMatrix, float *u, float *v, float *t);
 
-		BYTE								m_bLODLevel;
-		CGrannyModelInstance *				m_pCurrentModelInstance;		
+  void SetLocalTime(float fLocalTime);
+  void ResetLocalTime();
 
-		// WORK
-		std::deque<CGrannyModelInstance *>	m_que_pkModelInst;
+  void SetMotionPointer(const CGrannyMotion *c_pMotion, float fBlendTime,
+                        int iLoopCount, float speedRatio);
+  void ChangeMotionPointer(const CGrannyMotion *c_pMotion, int iLoopCount,
+                           float speedRatio);
+  void SetMotionAtEnd();
 
-		CGraphicVertexBuffer*	m_pkSharedDeformableVertexBuffer;
-		// END_OF_WORK
+  BOOL isModelInstance();
+  CGrannyModelInstance *GetModelInstance();
+  bool HaveBlendThing() {
+    return 0 != GetModelInstance() ? GetModelInstance()->HaveBlendThing()
+                                   : false;
+  } // NOTE: GetModelInstance() == 0일 때 클라 크래쉬나는 문제 수정(2012. 05.
+    // 07)
+
+protected:
+  void SetCurrentModelInstance(CGrannyModelInstance *pgrnModelInstance);
+  void RefreshAttachedModelInstance();
+
+  void __ReserveSharedDeformableVertexBuffer(DWORD deformableVertexCount);
+
+protected:
+  float m_fLODDistance;
+  DWORD m_dwLODAniFPS;
+
+  //// Attaching Link Data
+  // Data of Parent Side
+  typedef struct SAttachingModelData {
+    CGrannyLODController *pkLODController;
+    std::string strBoneName;
+  } TAttachingModelData;
+
+  std::vector<TAttachingModelData> m_AttachedModelDataVector;
+  // Data of Child Side
+  CGrannyLODController *m_pAttachedParentModel;
+
+  BYTE m_bLODLevel;
+  CGrannyModelInstance *m_pCurrentModelInstance;
+
+  // WORK
+  std::deque<CGrannyModelInstance *> m_que_pkModelInst;
+
+  CGraphicVertexBuffer *m_pkSharedDeformableVertexBuffer;
+  // END_OF_WORK
 };

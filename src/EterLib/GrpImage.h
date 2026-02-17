@@ -7,42 +7,41 @@
 
 struct TDecodedImageData;
 
-class CGraphicImage : public CResource
-{
-	public:
-		typedef CRef<CGraphicImage> TRef;
+class CGraphicImage : public CResource {
+public:
+  typedef CRef<CGraphicImage> TRef;
 
-	public:
-		static TType Type();
+public:
+  static TType Type();
 
-	public:
-		CGraphicImage(const char* c_szFileName, DWORD dwFilter = D3DX_FILTER_LINEAR);
-		virtual ~CGraphicImage();
+public:
+  CGraphicImage(const char *c_szFileName, DWORD dwFilter = D3DX_FILTER_LINEAR);
+  virtual ~CGraphicImage();
 
-		virtual bool CreateDeviceObjects();
-		virtual void DestroyDeviceObjects();
+  virtual bool CreateDeviceObjects();
+  virtual void DestroyDeviceObjects();
 
-		int GetWidth() const;
-		int GetHeight() const;
+  int GetWidth() const;
+  int GetHeight() const;
 
-		const RECT & GetRectReference() const;
+  const RECT &GetRectReference() const;
 
-		const CGraphicTexture & GetTextureReference() const;
-		CGraphicTexture * GetTexturePointer();
+  const CGraphicTexture &GetTextureReference() const;
+  CGraphicTexture *GetTexturePointer();
 
-		bool OnLoadFromDecodedData(const TDecodedImageData& decodedImage);
+  bool OnLoadFromDecodedData(const TDecodedImageData &decodedImage);
 
-	protected:
-		bool OnLoad(int iSize, const void * c_pvBuf);
-		
-		void OnClear();	
-		bool OnIsEmpty() const;
-		bool OnIsType(TType type);
+protected:
+  bool OnLoad(int iSize, const void *c_pvBuf);
 
-	protected:
-		CGraphicImageTexture	m_imageTexture;
-		RECT					m_rect;
-		DWORD					m_dwFilter;
+  void OnClear();
+  bool OnIsEmpty() const;
+  bool OnIsType(TType type);
+
+protected:
+  CGraphicImageTexture m_imageTexture;
+  RECT m_rect;
+  DWORD m_dwFilter;
 };
 
 #endif

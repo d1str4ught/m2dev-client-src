@@ -2,31 +2,30 @@
 
 #include "GrpBase.h"
 
-class CGraphicTexture : public CGraphicBase
-{
-	public:
-		virtual bool IsEmpty() const;
+class CGraphicTexture : public CGraphicBase {
+public:
+  virtual bool IsEmpty() const;
 
-		int GetWidth() const;
-		int GetHeight() const;
+  int GetWidth() const;
+  int GetHeight() const;
 
-		void SetTextureStage(int stage) const;
-		LPDIRECT3DTEXTURE9 GetD3DTexture() const;
+  void SetTextureStage(int stage) const;
+  LPDIRECT3DTEXTURE9 GetD3DTexture() const;
 
-		void DestroyDeviceObjects();
-		
-	protected:
-		CGraphicTexture();
-		virtual	~CGraphicTexture();
+  void DestroyDeviceObjects();
 
-		void Destroy();
-		void Initialize();
+protected:
+  CGraphicTexture();
+  virtual ~CGraphicTexture();
 
-	protected:
-		bool m_bEmpty;
+  void Destroy();
+  void Initialize();
 
-		int m_width;
-		int m_height;
+protected:
+  bool m_bEmpty;
 
-		LPDIRECT3DTEXTURE9 m_lpd3dTexture;
+  int m_width;
+  int m_height;
+
+  LPDIRECT3DTEXTURE9 m_lpd3dTexture;
 };

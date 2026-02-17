@@ -1,13 +1,13 @@
 #pragma once
 
-#pragma warning(disable:4702)
-#pragma warning(disable:4100)
-#pragma warning(disable:4201)
-#pragma warning(disable:4511)
-#pragma warning(disable:4663)
-#pragma warning(disable:4018)
-#pragma warning(disable:4245)
-#pragma warning(disable:4995)
+#pragma warning(disable : 4702)
+#pragma warning(disable : 4100)
+#pragma warning(disable : 4201)
+#pragma warning(disable : 4511)
+#pragma warning(disable : 4663)
+#pragma warning(disable : 4018)
+#pragma warning(disable : 4245)
+#pragma warning(disable : 4995)
 
 #include "EterLib/StdAfx.h"
 #include "EterPythonLib/StdAfx.h"
@@ -28,11 +28,10 @@
 
 #define APP_NAME "Metin 2"
 
-enum
-{
-	POINT_MAX_NUM = 255,
-	CHARACTER_NAME_MAX_LEN = 64,
-	PLAYER_NAME_MAX_LEN = 12,
+enum {
+  POINT_MAX_NUM = 255,
+  CHARACTER_NAME_MAX_LEN = 64,
+  PLAYER_NAME_MAX_LEN = 12,
 };
 
 void initapp();

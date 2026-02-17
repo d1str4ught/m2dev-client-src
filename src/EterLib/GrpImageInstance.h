@@ -5,56 +5,55 @@
 #include "GrpVertexBufferDynamic.h"
 #include "Pool.h"
 
-class CGraphicImageInstance
-{
-	public:
-		static DWORD Type();
-		BOOL IsType(DWORD dwType);
+class CGraphicImageInstance {
+public:
+  static DWORD Type();
+  BOOL IsType(DWORD dwType);
 
-	public:
-		CGraphicImageInstance();
-		virtual ~CGraphicImageInstance();
+public:
+  CGraphicImageInstance();
+  virtual ~CGraphicImageInstance();
 
-		void Destroy();
+  void Destroy();
 
-		void Render();
+  void Render();
 
-		void SetDiffuseColor(float fr, float fg, float fb, float fa);
-		void SetPosition(float fx, float fy);
+  void SetDiffuseColor(float fr, float fg, float fb, float fa);
+  void SetPosition(float fx, float fy);
 
-		void SetImagePointer(CGraphicImage* pImage);
-		void ReloadImagePointer(CGraphicImage* pImage);
-		bool IsEmpty() const;
+  void SetImagePointer(CGraphicImage *pImage);
+  void ReloadImagePointer(CGraphicImage *pImage);
+  bool IsEmpty() const;
 
-		int GetWidth();
-		int GetHeight();
+  int GetWidth();
+  int GetHeight();
 
-		CGraphicTexture * GetTexturePointer();
-		const CGraphicTexture &	GetTextureReference() const;
-		CGraphicImage * GetGraphicImagePointer();
+  CGraphicTexture *GetTexturePointer();
+  const CGraphicTexture &GetTextureReference() const;
+  CGraphicImage *GetGraphicImagePointer();
 
-		bool operator == (const CGraphicImageInstance & rhs) const;
+  bool operator==(const CGraphicImageInstance &rhs) const;
 
-	protected:
-		void Initialize();
+protected:
+  void Initialize();
 
-		virtual void OnRender();
-		virtual void OnSetImagePointer();
+  virtual void OnRender();
+  virtual void OnSetImagePointer();
 
-		virtual BOOL OnIsType(DWORD dwType);
+  virtual BOOL OnIsType(DWORD dwType);
 
-	protected:
-		D3DXCOLOR m_DiffuseColor;
-		D3DXVECTOR2 m_v2Position;
+protected:
+  D3DXCOLOR m_DiffuseColor;
+  D3DXVECTOR2 m_v2Position;
 
-		CGraphicImage::TRef m_roImage;
-		
-	public:
-		static void CreateSystem(UINT uCapacity);
-		static void DestroySystem();
+  CGraphicImage::TRef m_roImage;
 
-		static CGraphicImageInstance* New();
-		static void Delete(CGraphicImageInstance* pkImgInst);
+public:
+  static void CreateSystem(UINT uCapacity);
+  static void DestroySystem();
 
-		static CDynamicPool<CGraphicImageInstance>		ms_kPool;
+  static CGraphicImageInstance *New();
+  static void Delete(CGraphicImageInstance *pkImgInst);
+
+  static CDynamicPool<CGraphicImageInstance> ms_kPool;
 };

@@ -1,42 +1,41 @@
 #pragma once
 
-class CFlyTrace : public CScreen
-{
-	public:
-		CFlyTrace();
-		virtual ~CFlyTrace();
-		
-		void Destroy();
+class CFlyTrace : public CScreen {
+public:
+  CFlyTrace();
+  virtual ~CFlyTrace();
 
-		void Create(const CFlyingData::TFlyingAttachData & rFlyingAttachData);
+  void Destroy();
 
-		void UpdateNewPosition(const D3DXVECTOR3 & v3Position);
+  void Create(const CFlyingData::TFlyingAttachData &rFlyingAttachData);
 
-		void Update();
-		void Render();		
+  void UpdateNewPosition(const D3DXVECTOR3 &v3Position);
 
-	protected:
-		void __Initialize();
+  void Update();
+  void Render();
 
-	protected:
-		typedef std::pair<float, D3DXVECTOR3> TTimePosition;
-		typedef std::deque<TTimePosition> TTimePositionDeque;
+protected:
+  void __Initialize();
 
-		//CGraphicImageInstance m_ImageInstance;
-		//LPDIRECT3DTEXTURE9 m_lpTexture;
+protected:
+  typedef std::pair<float, D3DXVECTOR3> TTimePosition;
+  typedef std::deque<TTimePosition> TTimePositionDeque;
 
-		bool m_bRectShape;
-		DWORD m_dwColor;
-		float m_fSize;
-		float m_fTailLength;
+  // CGraphicImageInstance m_ImageInstance;
+  // LPDIRECT3DTEXTURE9 m_lpTexture;
 
-		TTimePositionDeque m_TimePositionDeque;
+  bool m_bRectShape;
+  DWORD m_dwColor;
+  float m_fSize;
+  float m_fTailLength;
 
-	public:
-		static void DestroySystem();
+  TTimePositionDeque m_TimePositionDeque;
 
-		static CFlyTrace* New();
-		static void Delete(CFlyTrace* pkInst);
+public:
+  static void DestroySystem();
 
-		static CDynamicPool<CFlyTrace>		ms_kPool;		
+  static CFlyTrace *New();
+  static void Delete(CFlyTrace *pkInst);
+
+  static CDynamicPool<CFlyTrace> ms_kPool;
 };

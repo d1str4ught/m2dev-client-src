@@ -1,4 +1,4 @@
-/* Copyright (C) John W. Ratcliff, 2001. 
+/* Copyright (C) John W. Ratcliff, 2001.
  * All rights reserved worldwide.
  *
  * This software is provided "as is" without express or implied
@@ -19,23 +19,24 @@
 
 #include "vector.h"
 
-enum ViewState
-{
-	VS_INSIDE,   // completely inside the frustum.
-	VS_PARTIAL,  // partially inside and partially outside the frustum.
-	VS_OUTSIDE   // completely outside the frustum
+enum ViewState {
+  VS_INSIDE,  // completely inside the frustum.
+  VS_PARTIAL, // partially inside and partially outside the frustum.
+  VS_OUTSIDE  // completely outside the frustum
 };
 
-class Frustum 
-{
-	public:
-		void BuildViewFrustum(D3DXMATRIX & mat);
-		void BuildViewFrustum2(D3DXMATRIX & mat, float fNear, float fFar, float fFov, float fAspect, const D3DXVECTOR3 & vCamera, const D3DXVECTOR3 & vLook);
-		ViewState ViewVolumeTest(const Vector3d &c_v3Center,const float c_fRadius) const;
+class Frustum {
+public:
+  void BuildViewFrustum(D3DXMATRIX &mat);
+  void BuildViewFrustum2(D3DXMATRIX &mat, float fNear, float fFar, float fFov,
+                         float fAspect, const D3DXVECTOR3 &vCamera,
+                         const D3DXVECTOR3 &vLook);
+  ViewState ViewVolumeTest(const Vector3d &c_v3Center,
+                           const float c_fRadius) const;
 
-	private:
-		bool m_bUsingSphere;
-		D3DXVECTOR3 m_v3Center;
-		float m_fRadius;
-		D3DXPLANE m_plane[6];
+private:
+  bool m_bUsingSphere;
+  D3DXVECTOR3 m_v3Center;
+  float m_fRadius;
+  D3DXPLANE m_plane[6];
 };

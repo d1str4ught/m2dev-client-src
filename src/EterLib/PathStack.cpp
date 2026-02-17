@@ -1,59 +1,39 @@
 #include "StdAfx.h"
 #include "PathStack.h"
 
-CPathStack::CPathStack()
-{
-	SetBase();
+CPathStack::CPathStack() { SetBase(); }
+
+CPathStack::~CPathStack() { MoveBase(); }
+
+void CPathStack::GetCurrentPathName(std::string *pstCurPathName) {
+  assert(pstCurPathName != NULL);
+
+  char szPathName[MAX_PATH + 1];
+  _getcwd(szPathName, MAX_PATH);
+
+  *pstCurPathName = szPathName;
 }
 
-CPathStack::~CPathStack()
-{
-	MoveBase();	
+void CPathStack::Push() {
+  char szPathName[MAX_PATH + 1];
+  _getcwd(szPathName, MAX_PATH);
+
+  m_stPathNameDeque.push_front(szPathName);
 }
 
-void CPathStack::GetCurrentPathName(std::string* pstCurPathName)
-{
-	assert(pstCurPathName!=NULL);
+bool CPathStack::Pop() {
+  if (m_stPathNameDeque.empty()) {
+    assert(!"CPathStack::Pop Empty Stack");
+    return false;
+  }
 
-	char szPathName[MAX_PATH+1];
-	_getcwd(szPathName, MAX_PATH);
-
-	*pstCurPathName = szPathName;
+  _chdir(m_stPathNameDeque.front().c_str());
+  m_stPathNameDeque.pop_front();
+  return true;
 }
 
-void CPathStack::Push()
-{	
-	char szPathName[MAX_PATH+1];
-	_getcwd(szPathName, MAX_PATH);
+void CPathStack::MoveBase() { _chdir(m_stBasePathName.c_str()); }
 
-	m_stPathNameDeque.push_front(szPathName);
-}
+void CPathStack::SetBase() { GetCurrentPathName(&m_stBasePathName); }
 
-bool CPathStack::Pop()
-{
-	if (m_stPathNameDeque.empty()) 
-	{
-		assert(!"CPathStack::Pop Empty Stack");
-		return false;
-	}
-
-	_chdir(m_stPathNameDeque.front().c_str());
-	m_stPathNameDeque.pop_front();
-	return true;
-}
-
-
-void CPathStack::MoveBase()
-{
-	_chdir(m_stBasePathName.c_str());
-}
-
-void CPathStack::SetBase()
-{
-	GetCurrentPathName(&m_stBasePathName);	
-}
-
-void CPathStack::Move(const char* c_szPathName)
-{
-	_chdir(c_szPathName);
-}
+void CPathStack::Move(const char *c_szPathName) { _chdir(c_szPathName); }

@@ -1,25 +1,24 @@
 #pragma once
 
-class CGraphicDib
-{
-	public:
-		CGraphicDib();
-		virtual ~CGraphicDib();
+class CGraphicDib {
+public:
+  CGraphicDib();
+  virtual ~CGraphicDib();
 
-		void Destroy();
-		bool Create(int width, int height);
+  void Destroy();
+  bool Create(int width, int height);
 
-		int GetWidth();
-		int GetHeight();
+  int GetWidth();
+  int GetHeight();
 
-		void* GetPointer();
+  void *GetPointer();
 
-	protected:
-		void Initialize();
+protected:
+  void Initialize();
 
-	protected:
-		int			m_width;
-		int			m_height;
+protected:
+  int m_width;
+  int m_height;
 
-		void *		m_pvBuf;
+  void *m_pvBuf;
 };

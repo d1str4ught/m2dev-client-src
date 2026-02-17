@@ -4,51 +4,51 @@
 #include <mutex>
 #include <set>
 
-class CRaceManager : public CSingleton<CRaceManager>
-{
-	public:
-		typedef std::map<DWORD, CRaceData *> TRaceDataMap;
-		typedef TRaceDataMap::iterator TRaceDataIterator;
+class CRaceManager : public CSingleton<CRaceManager> {
+public:
+  typedef std::map<DWORD, CRaceData *> TRaceDataMap;
+  typedef TRaceDataMap::iterator TRaceDataIterator;
 
-	public:
-		CRaceManager();
-		virtual ~CRaceManager();
+public:
+  CRaceManager();
+  virtual ~CRaceManager();
 
-		void Create();
-		void Destroy();
-		
-		void RegisterRaceName(DWORD dwRaceIndex, const char * c_szName);
-		void RegisterRaceSrcName(const char * c_szName, const char * c_szSrcName);
-		
-		void SetPathName(const char * c_szPathName);
-		const char * GetFullPathFileName(const char* c_szFileName);
+  void Create();
+  void Destroy();
 
-		// Handling
-		void CreateRace(DWORD dwRaceIndex);
-		void SelectRace(DWORD dwRaceIndex);
-		CRaceData * GetSelectedRaceDataPointer();
-		// Handling
+  void RegisterRaceName(DWORD dwRaceIndex, const char *c_szName);
+  void RegisterRaceSrcName(const char *c_szName, const char *c_szSrcName);
 
-		BOOL GetRaceDataPointer(DWORD dwRaceIndex, CRaceData ** ppRaceData);
+  void SetPathName(const char *c_szPathName);
+  const char *GetFullPathFileName(const char *c_szFileName);
 
-	protected:
-		CRaceData* __LoadRaceData(DWORD dwRaceIndex);
-		bool __LoadRaceMotionList(CRaceData& rkRaceData, const char* pathName, const char* motionListFileName);
+  // Handling
+  void CreateRace(DWORD dwRaceIndex);
+  void SelectRace(DWORD dwRaceIndex);
+  CRaceData *GetSelectedRaceDataPointer();
+  // Handling
 
-		void __Initialize();
-		void __DestroyRaceDataMap();
+  BOOL GetRaceDataPointer(DWORD dwRaceIndex, CRaceData **ppRaceData);
 
-	protected:
-		TRaceDataMap					m_RaceDataMap;
-		mutable std::mutex				m_RaceDataMapMutex;
+protected:
+  CRaceData *__LoadRaceData(DWORD dwRaceIndex);
+  bool __LoadRaceMotionList(CRaceData &rkRaceData, const char *pathName,
+                            const char *motionListFileName);
 
-		std::set<DWORD>					m_LoadingRaces;
-		mutable std::mutex				m_LoadingRacesMutex;
+  void __Initialize();
+  void __DestroyRaceDataMap();
 
-		std::map<std::string, std::string> m_kMap_stRaceName_stSrcName;
-		std::map<DWORD, std::string>	m_kMap_dwRaceKey_stRaceName;
+protected:
+  TRaceDataMap m_RaceDataMap;
+  mutable std::mutex m_RaceDataMapMutex;
 
-	private:
-		std::string						m_strPathName;
-		CRaceData *						m_pSelectedRaceData;
+  std::set<DWORD> m_LoadingRaces;
+  mutable std::mutex m_LoadingRacesMutex;
+
+  std::map<std::string, std::string> m_kMap_stRaceName_stSrcName;
+  std::map<DWORD, std::string> m_kMap_dwRaceKey_stRaceName;
+
+private:
+  std::string m_strPathName;
+  CRaceData *m_pSelectedRaceData;
 };

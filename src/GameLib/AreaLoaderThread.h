@@ -10,31 +10,30 @@
 class CTerrain;
 class CArea;
 
-class TEMP_CAreaLoaderThread
-{
+class TEMP_CAreaLoaderThread {
 public:
-	TEMP_CAreaLoaderThread();
-	virtual ~TEMP_CAreaLoaderThread();
+  TEMP_CAreaLoaderThread();
+  virtual ~TEMP_CAreaLoaderThread();
 
-	bool						Create(void * arg);
-	void						Shutdown();
+  bool Create(void *arg);
+  void Shutdown();
 
-	void						Request(CTerrain * pTerrain);
-	bool						Fetch(CTerrain ** ppTerrian);
+  void Request(CTerrain *pTerrain);
+  bool Fetch(CTerrain **ppTerrian);
 
-	void						Request(CArea * pArea);
-	bool						Fetch(CArea ** ppArea);
-
-private:
-	void						ProcessTerrain(CTerrain * pTerrain);
-	void						ProcessArea(CArea * pArea);
+  void Request(CArea *pArea);
+  bool Fetch(CArea **ppArea);
 
 private:
-	std::deque<CTerrain *>		m_pTerrainCompleteDeque;
-	std::mutex					m_TerrainCompleteMutex;
+  void ProcessTerrain(CTerrain *pTerrain);
+  void ProcessArea(CArea *pArea);
 
-	std::deque<CArea *>			m_pAreaCompleteDeque;
-	std::mutex					m_AreaCompleteMutex;
+private:
+  std::deque<CTerrain *> m_pTerrainCompleteDeque;
+  std::mutex m_TerrainCompleteMutex;
 
-	bool						m_bShutdowned;
+  std::deque<CArea *> m_pAreaCompleteDeque;
+  std::mutex m_AreaCompleteMutex;
+
+  bool m_bShutdowned;
 };

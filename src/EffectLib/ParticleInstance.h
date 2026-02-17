@@ -6,74 +6,73 @@
 class CParticleProperty;
 class CEmitterProperty;
 
-class CParticleInstance
-{
-	friend class CParticleSystemData;
-	friend class CParticleSystemInstance;
+class CParticleInstance {
+  friend class CParticleSystemData;
+  friend class CParticleSystemInstance;
 
-	public:
-		CParticleInstance();
-		~CParticleInstance();
+public:
+  CParticleInstance();
+  ~CParticleInstance();
 
-		float GetRadiusApproximation();
-		
-		BOOL Update(float fElapsedTime, float fAngle);
+  float GetRadiusApproximation();
 
-	private:
-		void UpdateRotation(float time, float elapsedTime);
-		void UpdateTextureAnimation(float time, float elapsedTime);
-		void UpdateScale(float time, float elapsedTime);
-		void UpdateColor(float time, float elapsedTime);
-		void UpdateGravity(float time, float elapsedTime);
-		void UpdateAirResistance(float time, float elapsedTime);
+  BOOL Update(float fElapsedTime, float fAngle);
 
-	protected:
-		D3DXVECTOR3			m_v3StartPosition;
+private:
+  void UpdateRotation(float time, float elapsedTime);
+  void UpdateTextureAnimation(float time, float elapsedTime);
+  void UpdateScale(float time, float elapsedTime);
+  void UpdateColor(float time, float elapsedTime);
+  void UpdateGravity(float time, float elapsedTime);
+  void UpdateAirResistance(float time, float elapsedTime);
 
-		D3DXVECTOR3			m_v3Position;
-		D3DXVECTOR3			m_v3LastPosition;
-		D3DXVECTOR3			m_v3Velocity;
+protected:
+  D3DXVECTOR3 m_v3StartPosition;
 
-		D3DXVECTOR2			m_v2HalfSize;
-		D3DXVECTOR2			m_v2Scale;
+  D3DXVECTOR3 m_v3Position;
+  D3DXVECTOR3 m_v3LastPosition;
+  D3DXVECTOR3 m_v3Velocity;
 
-		float				m_fRotation;
-		D3DXCOLOR			m_Color;
+  D3DXVECTOR2 m_v2HalfSize;
+  D3DXVECTOR2 m_v2Scale;
 
-		BYTE				m_byTextureAnimationType;
-		float				m_fLastFrameTime;
-		BYTE				m_byFrameIndex;
-		float				m_fFrameTime;
+  float m_fRotation;
+  D3DXCOLOR m_Color;
 
-		float				m_fLifeTime;
-		float				m_fLastLifeTime;
+  BYTE m_byTextureAnimationType;
+  float m_fLastFrameTime;
+  BYTE m_byFrameIndex;
+  float m_fFrameTime;
 
-		CParticleProperty *	m_pParticleProperty;
-		CEmitterProperty *	m_pEmitterProperty;
+  float m_fLifeTime;
+  float m_fLastLifeTime;
 
-		BYTE				m_rotationType;
+  CParticleProperty *m_pParticleProperty;
+  CEmitterProperty *m_pEmitterProperty;
 
-		float				m_fAirResistance;
-		float				m_fRotationSpeed;
-		float				m_fGravity;
+  BYTE m_rotationType;
 
-	public:
-		static CParticleInstance* New();
-		static void DestroySystem();
+  float m_fAirResistance;
+  float m_fRotationSpeed;
+  float m_fGravity;
 
-		void Transform(const D3DXMATRIX * c_matLocal=NULL);
-		void Transform(const D3DXMATRIX * c_matLocal, const float c_fZRotation);
+public:
+  static CParticleInstance *New();
+  static void DestroySystem();
 
-		TPTVertex * GetParticleMeshPointer();
-		
-		void DeleteThis();
+  void Transform(const D3DXMATRIX *c_matLocal = NULL);
+  void Transform(const D3DXMATRIX *c_matLocal, const float c_fZRotation);
 
-		void Destroy();
+  TPTVertex *GetParticleMeshPointer();
 
-	protected:
-		void __Initialize();
-		TPTVertex			m_ParticleMesh[4];
-	public:
-		static CDynamicPool<CParticleInstance> ms_kPool;
-		
+  void DeleteThis();
+
+  void Destroy();
+
+protected:
+  void __Initialize();
+  TPTVertex m_ParticleMesh[4];
+
+public:
+  static CDynamicPool<CParticleInstance> ms_kPool;
 };

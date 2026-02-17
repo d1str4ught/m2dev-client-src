@@ -1,4 +1,4 @@
-///////////////////////////////////////////////////////////////////////  
+///////////////////////////////////////////////////////////////////////
 //	CSpeedTreeForestDirectX8 Class
 //
 //	(c) 2003 IDV, Inc.
@@ -42,307 +42,296 @@
 #include "SpeedTreeConfig.h"
 #include "VertexShaders.h"
 
-///////////////////////////////////////////////////////////////////////  
+///////////////////////////////////////////////////////////////////////
 //	CSpeedTreeForestDirectX8::CSpeedTreeForestDirectX8
 
-CSpeedTreeForestDirectX8::CSpeedTreeForestDirectX8()  : m_dwBranchVertexShader(nullptr), m_pLeafVertexShaderDecl(nullptr), m_pLeafVertexShader(nullptr)
-{
-}
+CSpeedTreeForestDirectX8::CSpeedTreeForestDirectX8()
+    : m_dwBranchVertexShader(nullptr), m_pLeafVertexShaderDecl(nullptr),
+      m_pLeafVertexShader(nullptr) {}
 
-
-///////////////////////////////////////////////////////////////////////  
+///////////////////////////////////////////////////////////////////////
 //	CSpeedTreeForestDirectX8::~CSpeedTreeForestDirectX8
 
-CSpeedTreeForestDirectX8::~CSpeedTreeForestDirectX8()
-{
-}
+CSpeedTreeForestDirectX8::~CSpeedTreeForestDirectX8() {}
 
-
-///////////////////////////////////////////////////////////////////////  
+///////////////////////////////////////////////////////////////////////
 //	CSpeedTreeForestDirectX8::InitVertexShaders
-bool CSpeedTreeForestDirectX8::InitVertexShaders(void)
-{
-	// load the vertex shaders
-	if (!m_dwBranchVertexShader)
-		m_dwBranchVertexShader = LoadBranchShader(m_pDx);
+bool CSpeedTreeForestDirectX8::InitVertexShaders(void) {
+  // load the vertex shaders
+  if (!m_dwBranchVertexShader)
+    m_dwBranchVertexShader = LoadBranchShader(m_pDx);
 
-	if (!m_pLeafVertexShaderDecl || !m_pLeafVertexShader)
-		LoadLeafShader(m_pDx, m_pLeafVertexShaderDecl, m_pLeafVertexShader);
+  if (!m_pLeafVertexShaderDecl || !m_pLeafVertexShader)
+    LoadLeafShader(m_pDx, m_pLeafVertexShaderDecl, m_pLeafVertexShader);
 
-	if (m_dwBranchVertexShader && m_pLeafVertexShaderDecl && m_pLeafVertexShader)
-	{
-		CSpeedTreeWrapper::SetVertexShaders(m_dwBranchVertexShader, m_pLeafVertexShaderDecl, m_pLeafVertexShader);
-		return true;
-	}
+  if (m_dwBranchVertexShader && m_pLeafVertexShaderDecl &&
+      m_pLeafVertexShader) {
+    CSpeedTreeWrapper::SetVertexShaders(
+        m_dwBranchVertexShader, m_pLeafVertexShaderDecl, m_pLeafVertexShader);
+    return true;
+  }
 
-	return false;
+  return false;
 }
 
-bool CSpeedTreeForestDirectX8::SetRenderingDevice(LPDIRECT3DDEVICE9 lpDevice)
-{
-	m_pDx = lpDevice;
+bool CSpeedTreeForestDirectX8::SetRenderingDevice(LPDIRECT3DDEVICE9 lpDevice) {
+  m_pDx = lpDevice;
 
-	if (!InitVertexShaders())
-		return false;
+  if (!InitVertexShaders())
+    return false;
 
-	const float c_afLightPosition[4] = { -0.707f, -0.300f, 0.707f, 0.0f };
-	const float	c_afLightAmbient[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
-	const float	c_afLightDiffuse[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	const float	c_afLightSpecular[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+  const float c_afLightPosition[4] = {-0.707f, -0.300f, 0.707f, 0.0f};
+  const float c_afLightAmbient[4] = {0.5f, 0.5f, 0.5f, 1.0f};
+  const float c_afLightDiffuse[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+  const float c_afLightSpecular[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
-	float afLight1[] =
-	{
-		c_afLightPosition[0], c_afLightPosition[1], c_afLightPosition[2],	// pos
-		c_afLightDiffuse[0], c_afLightDiffuse[1], c_afLightDiffuse[2],		// diffuse
-		c_afLightAmbient[0], c_afLightAmbient[1], c_afLightAmbient[2],		// ambient
-		c_afLightSpecular[0], c_afLightSpecular[1], c_afLightSpecular[2],	// specular
-		c_afLightPosition[3],												// directional flag
-		1.0f, 0.0f, 0.0f													// attenuation (constant, linear, quadratic)
-	};
+  float afLight1[] = {
+      c_afLightPosition[0],
+      c_afLightPosition[1],
+      c_afLightPosition[2], // pos
+      c_afLightDiffuse[0],
+      c_afLightDiffuse[1],
+      c_afLightDiffuse[2], // diffuse
+      c_afLightAmbient[0],
+      c_afLightAmbient[1],
+      c_afLightAmbient[2], // ambient
+      c_afLightSpecular[0],
+      c_afLightSpecular[1],
+      c_afLightSpecular[2], // specular
+      c_afLightPosition[3], // directional flag
+      1.0f,
+      0.0f,
+      0.0f // attenuation (constant, linear, quadratic)
+  };
 
-	CSpeedTreeRT::SetNumWindMatrices(c_nNumWindMatrices);
+  CSpeedTreeRT::SetNumWindMatrices(c_nNumWindMatrices);
 
-	CSpeedTreeRT::SetLightAttributes(0, afLight1);	
-	CSpeedTreeRT::SetLightState(0, true);
-	return true;
+  CSpeedTreeRT::SetLightAttributes(0, afLight1);
+  CSpeedTreeRT::SetLightState(0, true);
+  return true;
 }
 
-///////////////////////////////////////////////////////////////////////  
+///////////////////////////////////////////////////////////////////////
 //	CSpeedTreeForestDirectX8::UploadWindMatrix
 
-void CSpeedTreeForestDirectX8::UploadWindMatrix(UINT uiLocation, const float* pMatrix) const
-{
-	STATEMANAGER.SetVertexShaderConstant(uiLocation, pMatrix, 4);
+void CSpeedTreeForestDirectX8::UploadWindMatrix(UINT uiLocation,
+                                                const float *pMatrix) const {
+  STATEMANAGER.SetVertexShaderConstant(uiLocation, pMatrix, 4);
 }
 
-void CSpeedTreeForestDirectX8::UpdateCompundMatrix(const D3DXVECTOR3& c_rEyeVec, const D3DXMATRIX& c_rmatView, const D3DXMATRIX& c_rmatProj)
-{
-    // setup composite matrix for shader
-	D3DXMATRIX matBlend;
-	D3DXMatrixIdentity(&matBlend);
+void CSpeedTreeForestDirectX8::UpdateCompundMatrix(
+    const D3DXVECTOR3 &c_rEyeVec, const D3DXMATRIX &c_rmatView,
+    const D3DXMATRIX &c_rmatProj) {
+  // setup composite matrix for shader
+  D3DXMATRIX matBlend;
+  D3DXMatrixIdentity(&matBlend);
 
-	D3DXMATRIX matBlendShader;
-	D3DXMatrixMultiply(&matBlendShader, &c_rmatView, &c_rmatProj);
+  D3DXMATRIX matBlendShader;
+  D3DXMatrixMultiply(&matBlendShader, &c_rmatView, &c_rmatProj);
 
-	float afDirection[3];
-	afDirection[0] = matBlendShader.m[0][2];
-	afDirection[1] = matBlendShader.m[1][2];
-	afDirection[2] = matBlendShader.m[2][2];
-	CSpeedTreeRT::SetCamera(c_rEyeVec, afDirection);
+  float afDirection[3];
+  afDirection[0] = matBlendShader.m[0][2];
+  afDirection[1] = matBlendShader.m[1][2];
+  afDirection[2] = matBlendShader.m[2][2];
+  CSpeedTreeRT::SetCamera(c_rEyeVec, afDirection);
 
-	D3DXMatrixTranspose(&matBlendShader, &matBlendShader);
-	STATEMANAGER.SetVertexShaderConstant(c_nVertexShader_CompoundMatrix, &matBlendShader, 4);
+  D3DXMatrixTranspose(&matBlendShader, &matBlendShader);
+  STATEMANAGER.SetVertexShaderConstant(c_nVertexShader_CompoundMatrix,
+                                       &matBlendShader, 4);
 }
 
-///////////////////////////////////////////////////////////////////////  
+///////////////////////////////////////////////////////////////////////
 //	CSpeedTreeForestDirectX8::Render
 
-void CSpeedTreeForestDirectX8::Render(unsigned long ulRenderBitVector)
-{
-	UpdateSystem(CTimer::Instance().GetCurrentSecond());
+void CSpeedTreeForestDirectX8::Render(unsigned long ulRenderBitVector) {
+  UpdateSystem(CTimer::Instance().GetCurrentSecond());
 
-	if (m_pMainTreeMap.empty())
-		return;
+  if (m_pMainTreeMap.empty())
+    return;
 
-	if (!(ulRenderBitVector & Forest_RenderToShadow) && !(ulRenderBitVector & Forest_RenderToMiniMap))
-		UpdateCompundMatrix(CCameraManager::Instance().GetCurrentCamera()->GetEye(), ms_matView, ms_matProj);
+  if (!(ulRenderBitVector & Forest_RenderToShadow) &&
+      !(ulRenderBitVector & Forest_RenderToMiniMap))
+    UpdateCompundMatrix(CCameraManager::Instance().GetCurrentCamera()->GetEye(),
+                        ms_matView, ms_matProj);
 
-	DWORD dwLightState = STATEMANAGER.GetRenderState(D3DRS_LIGHTING);
-	DWORD dwColorVertexState = STATEMANAGER.GetRenderState(D3DRS_COLORVERTEX);
-	DWORD dwFogVertexMode = STATEMANAGER.GetRenderState(D3DRS_FOGVERTEXMODE);
+  DWORD dwLightState = STATEMANAGER.GetRenderState(D3DRS_LIGHTING);
+  DWORD dwColorVertexState = STATEMANAGER.GetRenderState(D3DRS_COLORVERTEX);
+  DWORD dwFogVertexMode = STATEMANAGER.GetRenderState(D3DRS_FOGVERTEXMODE);
 
 #ifdef WRAPPER_USE_DYNAMIC_LIGHTING
-	STATEMANAGER.SetRenderState(D3DRS_LIGHTING, TRUE);
+  STATEMANAGER.SetRenderState(D3DRS_LIGHTING, TRUE);
 #else
-	STATEMANAGER.SetRenderState(D3DRS_LIGHTING, FALSE);
-	STATEMANAGER.SetRenderState(D3DRS_COLORVERTEX, TRUE);
+  STATEMANAGER.SetRenderState(D3DRS_LIGHTING, FALSE);
+  STATEMANAGER.SetRenderState(D3DRS_COLORVERTEX, TRUE);
 #endif
 
-	TTreeMap::iterator itor;
-	UINT uiCount;
-	
-	itor = m_pMainTreeMap.begin();
+  TTreeMap::iterator itor;
+  UINT uiCount;
 
-	while (itor != m_pMainTreeMap.end())
-	{
-		auto pMainTree = (itor++)->second;
-		auto ppInstances = pMainTree->GetInstances(uiCount);
+  itor = m_pMainTreeMap.begin();
 
-		for (auto it : ppInstances)
-			it->Advance();
-	}
+  while (itor != m_pMainTreeMap.end()) {
+    auto pMainTree = (itor++)->second;
+    auto ppInstances = pMainTree->GetInstances(uiCount);
 
-	STATEMANAGER.SetVertexShaderConstant(c_nVertexShader_Light,	m_afLighting, 3);
-	STATEMANAGER.SetVertexShaderConstant(c_nVertexShader_Fog, m_afFog, 1);
+    for (auto it : ppInstances)
+      it->Advance();
+  }
 
-	if (ulRenderBitVector & Forest_RenderToShadow)
-	{
-		//STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP,	D3DTOP_DISABLE);
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1,	D3DTA_TEXTURE);
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG2,	D3DTA_DIFFUSE);
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP,	D3DTOP_MODULATE);
-	}
-	else
-	{
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1,	D3DTA_TEXTURE);
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG2,	D3DTA_DIFFUSE);
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP,	D3DTOP_MODULATE);
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1,	D3DTA_TEXTURE);
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG2,	D3DTA_DIFFUSE);
-		STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP,	D3DTOP_MODULATE);
-		STATEMANAGER.SetSamplerState(0, D3DSAMP_MINFILTER,	D3DTEXF_LINEAR);
-		STATEMANAGER.SetSamplerState(0, D3DSAMP_MAGFILTER,	D3DTEXF_LINEAR);
-		STATEMANAGER.SetSamplerState(0, D3DSAMP_MIPFILTER,	D3DTEXF_LINEAR);
+  STATEMANAGER.SetVertexShaderConstant(c_nVertexShader_Light, m_afLighting, 3);
+  STATEMANAGER.SetVertexShaderConstant(c_nVertexShader_Fog, m_afFog, 1);
 
-		STATEMANAGER.SetTextureStageState(1, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-		STATEMANAGER.SetTextureStageState(1, D3DTSS_COLORARG2, D3DTA_CURRENT);
-		STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_MODULATE);
-		STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-		STATEMANAGER.SetSamplerState(1, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
-		STATEMANAGER.SetSamplerState(1, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
-	}
+  if (ulRenderBitVector & Forest_RenderToShadow) {
+    // STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP,	D3DTOP_DISABLE);
+    STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+    STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+    STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+  } else {
+    STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+    STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+    STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+    STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+    STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+    STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+    STATEMANAGER.SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+    STATEMANAGER.SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+    STATEMANAGER.SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
 
-	STATEMANAGER.SaveRenderState(D3DRS_ALPHATESTENABLE, TRUE);
-	STATEMANAGER.SaveRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATER);
-	STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_CW);
+    STATEMANAGER.SetTextureStageState(1, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+    STATEMANAGER.SetTextureStageState(1, D3DTSS_COLORARG2, D3DTA_CURRENT);
+    STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_MODULATE);
+    STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+    STATEMANAGER.SetSamplerState(1, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
+    STATEMANAGER.SetSamplerState(1, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
+  }
 
-	// set up fog if it is enabled
-	if (STATEMANAGER.GetRenderState(D3DRS_FOGENABLE))
-	{
-		#ifdef WRAPPER_USE_GPU_WIND
-			STATEMANAGER.SetRenderState(D3DRS_FOGVERTEXMODE, D3DFOG_NONE); // GPU needs to work on all cards
-		#endif
-	}
+  STATEMANAGER.SaveRenderState(D3DRS_ALPHATESTENABLE, TRUE);
+  STATEMANAGER.SaveRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATER);
+  STATEMANAGER.SaveRenderState(D3DRS_CULLMODE, D3DCULL_CW);
 
-	// choose fixed function pipeline or custom shader for fronds and branches
-	STATEMANAGER.SetVertexDeclaration(m_dwBranchVertexShader);
+  // set up fog if it is enabled
+  if (STATEMANAGER.GetRenderState(D3DRS_FOGENABLE)) {
+#ifdef WRAPPER_USE_GPU_WIND
+    STATEMANAGER.SetRenderState(D3DRS_FOGVERTEXMODE,
+                                D3DFOG_NONE); // GPU needs to work on all cards
+#endif
+  }
 
-	// render branches
-	if (ulRenderBitVector & Forest_RenderBranches)
-	{
-		itor = m_pMainTreeMap.begin();
+  // choose fixed function pipeline or custom shader for fronds and branches
+  STATEMANAGER.SetVertexDeclaration(m_dwBranchVertexShader);
 
-		while (itor != m_pMainTreeMap.end())
-		{
-			auto pMainTree = (itor++)->second;
-			auto ppInstances = pMainTree->GetInstances(uiCount);
-			
-			pMainTree->SetupBranchForTreeType();
+  // render branches
+  if (ulRenderBitVector & Forest_RenderBranches) {
+    itor = m_pMainTreeMap.begin();
 
-			for (UINT i = 0; i < uiCount; ++i)
-				if (ppInstances[i]->isShow())
-					ppInstances[i]->RenderBranches();
-		}
-	}
+    while (itor != m_pMainTreeMap.end()) {
+      auto pMainTree = (itor++)->second;
+      auto ppInstances = pMainTree->GetInstances(uiCount);
 
-	// set render states
-	STATEMANAGER.SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+      pMainTree->SetupBranchForTreeType();
 
-	// render fronds
-	if (ulRenderBitVector & Forest_RenderFronds)
-	{
-		itor = m_pMainTreeMap.begin();
+      for (UINT i = 0; i < uiCount; ++i)
+        if (ppInstances[i]->isShow())
+          ppInstances[i]->RenderBranches();
+    }
+  }
 
-		while (itor != m_pMainTreeMap.end())
-		{
-			auto pMainTree = (itor++)->second;
-			auto ppInstances = pMainTree->GetInstances(uiCount);
+  // set render states
+  STATEMANAGER.SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
 
-			pMainTree->SetupFrondForTreeType();
+  // render fronds
+  if (ulRenderBitVector & Forest_RenderFronds) {
+    itor = m_pMainTreeMap.begin();
 
-			for (auto it : ppInstances)
-			{
-				if (it->isShow())
-					it->RenderFronds();
-			}
-		}
-	}
+    while (itor != m_pMainTreeMap.end()) {
+      auto pMainTree = (itor++)->second;
+      auto ppInstances = pMainTree->GetInstances(uiCount);
 
-	// render leaves
-	if (ulRenderBitVector & Forest_RenderLeaves)
-	{
-		STATEMANAGER.SetVertexDeclaration(m_pLeafVertexShaderDecl);
-		STATEMANAGER.SaveVertexShader(m_pLeafVertexShader);
+      pMainTree->SetupFrondForTreeType();
 
-		if (STATEMANAGER.GetRenderState(D3DRS_FOGENABLE))
-		{
-			#if defined WRAPPER_USE_GPU_WIND || defined WRAPPER_USE_GPU_LEAF_PLACEMENT
-				STATEMANAGER.SetRenderState(D3DRS_FOGVERTEXMODE, D3DFOG_NONE);
-			#endif
-		}
+      for (auto it : ppInstances) {
+        if (it->isShow())
+          it->RenderFronds();
+      }
+    }
+  }
 
-		if (ulRenderBitVector & Forest_RenderToShadow || ulRenderBitVector & Forest_RenderToMiniMap)
-		{
-			STATEMANAGER.SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_NOTEQUAL);
-			STATEMANAGER.SaveRenderState(D3DRS_ALPHAREF, 0x00000000);
-		}
+  // render leaves
+  if (ulRenderBitVector & Forest_RenderLeaves) {
+    STATEMANAGER.SetVertexDeclaration(m_pLeafVertexShaderDecl);
+    STATEMANAGER.SaveVertexShader(m_pLeafVertexShader);
 
-		itor = m_pMainTreeMap.begin();
+    if (STATEMANAGER.GetRenderState(D3DRS_FOGENABLE)) {
+#if defined WRAPPER_USE_GPU_WIND || defined WRAPPER_USE_GPU_LEAF_PLACEMENT
+      STATEMANAGER.SetRenderState(D3DRS_FOGVERTEXMODE, D3DFOG_NONE);
+#endif
+    }
 
-		while (itor != m_pMainTreeMap.end())
-		{
-			auto pMainTree = (itor++)->second;
-			auto ppInstances = pMainTree->GetInstances(uiCount);
+    if (ulRenderBitVector & Forest_RenderToShadow ||
+        ulRenderBitVector & Forest_RenderToMiniMap) {
+      STATEMANAGER.SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_NOTEQUAL);
+      STATEMANAGER.SaveRenderState(D3DRS_ALPHAREF, 0x00000000);
+    }
 
-			pMainTree->SetupLeafForTreeType();
+    itor = m_pMainTreeMap.begin();
 
-			for (auto it : ppInstances)
-			{
-				if (it->isShow())
-					it->RenderLeaves();
-			}
-		}
+    while (itor != m_pMainTreeMap.end()) {
+      auto pMainTree = (itor++)->second;
+      auto ppInstances = pMainTree->GetInstances(uiCount);
 
-		while (itor != m_pMainTreeMap.end())
-			(itor++)->second->EndLeafForTreeType();
+      pMainTree->SetupLeafForTreeType();
 
-		if (ulRenderBitVector & Forest_RenderToShadow || ulRenderBitVector & Forest_RenderToMiniMap)
-		{
-			STATEMANAGER.SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATER);
-			STATEMANAGER.RestoreRenderState(D3DRS_ALPHAREF);
-		}
-		STATEMANAGER.RestoreVertexShader();
-	}
+      for (auto it : ppInstances) {
+        if (it->isShow())
+          it->RenderLeaves();
+      }
+    }
 
-	// render billboards
-	#ifndef WRAPPER_NO_BILLBOARD_MODE
-		if (ulRenderBitVector & Forest_RenderBillboards)
-		{
-			STATEMANAGER.SetRenderState(D3DRS_LIGHTING, FALSE);
-			STATEMANAGER.SetRenderState(D3DRS_COLORVERTEX, FALSE);
+    while (itor != m_pMainTreeMap.end())
+      (itor++)->second->EndLeafForTreeType();
 
-			itor = m_pMainTreeMap.begin();
+    if (ulRenderBitVector & Forest_RenderToShadow ||
+        ulRenderBitVector & Forest_RenderToMiniMap) {
+      STATEMANAGER.SetRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATER);
+      STATEMANAGER.RestoreRenderState(D3DRS_ALPHAREF);
+    }
+    STATEMANAGER.RestoreVertexShader();
+  }
 
-			while (itor != m_pMainTreeMap.end())
-			{
-				auto pMainTree = (itor++)->second;
-				auto ppInstances = pMainTree->GetInstances(uiCount);
+// render billboards
+#ifndef WRAPPER_NO_BILLBOARD_MODE
+  if (ulRenderBitVector & Forest_RenderBillboards) {
+    STATEMANAGER.SetRenderState(D3DRS_LIGHTING, FALSE);
+    STATEMANAGER.SetRenderState(D3DRS_COLORVERTEX, FALSE);
 
-				pMainTree->SetupLeafForTreeType();
+    itor = m_pMainTreeMap.begin();
 
-				for (auto it : ppInstances)
-				{
-					if (it->isShow())
-						it->RenderBillboards();
-				}
-			}
-		}
-	#endif
+    while (itor != m_pMainTreeMap.end()) {
+      auto pMainTree = (itor++)->second;
+      auto ppInstances = pMainTree->GetInstances(uiCount);
 
-	STATEMANAGER.SetRenderState(D3DRS_LIGHTING, dwLightState);
-	STATEMANAGER.SetRenderState(D3DRS_COLORVERTEX, dwColorVertexState);
-	STATEMANAGER.SetRenderState(D3DRS_FOGVERTEXMODE, dwFogVertexMode);
+      pMainTree->SetupLeafForTreeType();
 
-	// 셀프섀도우로 쓰는 TextureStage 1의 COLOROP와 ALPHAOP를 꺼줘야 다음 렌더링 할 놈들이
-	// 제대로 나온다. (안그러면 검게 나올 가능성이..)
-	if (!(ulRenderBitVector & Forest_RenderToShadow))
-	{
-		STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
-		STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-	}
+      for (auto it : ppInstances) {
+        if (it->isShow())
+          it->RenderBillboards();
+      }
+    }
+  }
+#endif
 
-	STATEMANAGER.RestoreRenderState(D3DRS_ALPHATESTENABLE);
-	STATEMANAGER.RestoreRenderState(D3DRS_ALPHAFUNC);
-	STATEMANAGER.RestoreRenderState(D3DRS_CULLMODE);
+  STATEMANAGER.SetRenderState(D3DRS_LIGHTING, dwLightState);
+  STATEMANAGER.SetRenderState(D3DRS_COLORVERTEX, dwColorVertexState);
+  STATEMANAGER.SetRenderState(D3DRS_FOGVERTEXMODE, dwFogVertexMode);
+
+  // 셀프섀도우로 쓰는 TextureStage 1의 COLOROP와 ALPHAOP를 꺼줘야 다음 렌더링
+  // 할 놈들이 제대로 나온다. (안그러면 검게 나올 가능성이..)
+  if (!(ulRenderBitVector & Forest_RenderToShadow)) {
+    STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+    STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+  }
+
+  STATEMANAGER.RestoreRenderState(D3DRS_ALPHATESTENABLE);
+  STATEMANAGER.RestoreRenderState(D3DRS_ALPHAFUNC);
+  STATEMANAGER.RestoreRenderState(D3DRS_CULLMODE);
 }
-

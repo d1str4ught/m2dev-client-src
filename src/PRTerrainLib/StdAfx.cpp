@@ -5,6 +5,5 @@
 #include "stdafx.h"
 
 /* Fast Float<->Integer conversion */
-float	PR_FCNV;        
-long	PR_ICNV;
-
+float PR_FCNV;
+long PR_ICNV;

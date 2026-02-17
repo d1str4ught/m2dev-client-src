@@ -5,98 +5,94 @@
 #include "RingBuffer.h"
 #include "ControlPackets.h"
 
+class CNetworkStream {
+public:
+  CNetworkStream();
+  virtual ~CNetworkStream();
 
-class CNetworkStream
-{
-	public:
-		CNetworkStream();
-		virtual ~CNetworkStream();
+  void SetRecvBufferSize(int recvBufSize);
+  void SetSendBufferSize(int sendBufSize);
 
-		void SetRecvBufferSize(int recvBufSize);
-		void SetSendBufferSize(int sendBufSize);
+  bool IsSecurityMode();
 
-		bool IsSecurityMode();
+  int GetRecvBufferSize();
 
-		int	GetRecvBufferSize();
+  void Clear();
+  void ClearRecvBuffer();
 
-		void Clear();
-		void ClearRecvBuffer();
+  void Process();
 
-		void Process();
+  bool Connect(const CNetworkAddress &c_rkNetAddr, int limitSec = 3);
+  bool Connect(const char *c_szAddr, int port, int limitSec = 3);
+  bool Connect(DWORD dwAddr, int port, int limitSec = 3);
+  void Disconnect();
 
-		bool Connect(const CNetworkAddress& c_rkNetAddr, int limitSec = 3);
-		bool Connect(const char* c_szAddr, int port, int limitSec = 3);
-		bool Connect(DWORD dwAddr, int port, int limitSec = 3);
-		void Disconnect();
+  bool Peek(int len);
+  bool Peek(int len, char *pDestBuf);
+  bool Recv(int len);
+  bool Recv(int len, char *pDestBuf);
+  bool Send(int len, const char *pSrcBuf);
 
-		bool Peek(int len);
-		bool Peek(int len, char* pDestBuf);
-		bool Recv(int len);
-		bool Recv(int len, char* pDestBuf);
-		bool Send(int len, const char* pSrcBuf);
+  bool Peek(int len, void *pDestBuf);
+  bool Recv(int len, void *pDestBuf);
 
-		bool Peek(int len, void* pDestBuf);
-		bool Recv(int len, void* pDestBuf);
+  bool Send(int len, const void *pSrcBuf);
+  bool SendFlush(int len, const void *pSrcBuf);
 
-		bool Send(int len, const void* pSrcBuf);
-		bool SendFlush(int len, const void* pSrcBuf);
+  bool IsOnline();
 
-		bool IsOnline();
+protected:
+  virtual void OnConnectSuccess();
+  virtual void OnConnectFailure();
+  virtual void OnRemoteDisconnect();
+  virtual void OnDisconnect();
+  virtual bool OnProcess();
 
-	protected:
-		virtual void OnConnectSuccess();
-		virtual void OnConnectFailure();
-		virtual void OnRemoteDisconnect();
-		virtual void OnDisconnect();
-		virtual bool OnProcess();
+  bool __SendInternalBuffer();
+  bool __RecvInternalBuffer();
 
-		bool __SendInternalBuffer();
-		bool __RecvInternalBuffer();
+  int __GetSendBufferSize();
 
-		int __GetSendBufferSize();
+  // Secure cipher methods (libsodium)
+  SecureCipher &GetSecureCipher() { return m_secureCipher; }
+  bool IsSecureCipherActivated() const { return m_secureCipher.IsActivated(); }
+  void ActivateSecureCipher() { m_secureCipher.SetActivated(true); }
 
-		// Secure cipher methods (libsodium)
-		SecureCipher& GetSecureCipher() { return m_secureCipher; }
-		bool IsSecureCipherActivated() const { return m_secureCipher.IsActivated(); }
-		void ActivateSecureCipher() { m_secureCipher.SetActivated(true); }
+  // Decrypt any unprocessed data already in the recv buffer
+  // Must be called after activating the cipher mid-stream
+  void DecryptPendingRecvData();
 
-		// Decrypt any unprocessed data already in the recv buffer
-		// Must be called after activating the cipher mid-stream
-		void DecryptPendingRecvData();
+  // Control-plane packet handlers (shared by all connection types)
+  virtual bool RecvKeyChallenge();
+  virtual bool RecvKeyComplete();
+  bool RecvPingPacket();
+  bool SendPongPacket();
 
-		// Control-plane packet handlers (shared by all connection types)
-		virtual bool RecvKeyChallenge();
-		virtual bool RecvKeyComplete();
-		bool RecvPingPacket();
-		bool SendPongPacket();
+  // Packet send tracking (for debug sequence correlation)
+protected:
+  struct SentPacketLogEntry {
+    uint32_t seq;
+    uint16_t header;
+    uint16_t length;
+  };
 
-	// Packet send tracking (for debug sequence correlation)
-	protected:
-		struct SentPacketLogEntry
-		{
-			uint32_t seq;
-			uint16_t header;
-			uint16_t length;
-		};
+  static constexpr size_t SENT_PACKET_LOG_SIZE = 32;
 
-		static constexpr size_t SENT_PACKET_LOG_SIZE = 32;
+  SentPacketLogEntry m_aSentPacketLog[SENT_PACKET_LOG_SIZE] = {};
+  uint32_t m_dwSentPacketSeq = 0;
 
-		SentPacketLogEntry	m_aSentPacketLog[SENT_PACKET_LOG_SIZE] = {};
-		uint32_t			m_dwSentPacketSeq = 0;
+private:
+  time_t m_connectLimitTime;
 
-	private:
-		time_t	m_connectLimitTime;
+  RingBuffer m_recvBuf;
+  RingBuffer m_sendBuf;
 
-		RingBuffer m_recvBuf;
-		RingBuffer m_sendBuf;
+  bool m_isOnline;
 
-		bool	m_isOnline;
+  // Secure cipher (libsodium/XChaCha20-Poly1305)
+  SecureCipher m_secureCipher;
 
-		// Secure cipher (libsodium/XChaCha20-Poly1305)
-		SecureCipher m_secureCipher;
+  SOCKET m_sock;
 
-		SOCKET	m_sock;
-
-		CNetworkAddress m_addr;
-
+  CNetworkAddress m_addr;
 };

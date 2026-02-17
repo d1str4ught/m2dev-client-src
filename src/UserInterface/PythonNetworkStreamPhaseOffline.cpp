@@ -3,7 +3,4 @@
 #include "PythonApplication.h"
 #include "Packet.h"
 
-void CPythonNetworkStream::OffLinePhase()
-{
-	DispatchPacket(m_offlineHandlers);
-}
+void CPythonNetworkStream::OffLinePhase() { DispatchPacket(m_offlineHandlers); }

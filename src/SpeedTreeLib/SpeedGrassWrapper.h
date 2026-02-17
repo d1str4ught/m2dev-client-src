@@ -1,4 +1,4 @@
-///////////////////////////////////////////////////////////////////////  
+///////////////////////////////////////////////////////////////////////
 //	CSpeedGrassWrapper Class
 //
 //	(c) 2003 IDV, Inc.
@@ -20,42 +20,38 @@
 //		Fax:   (803) 931-0320
 //		Web:   http://www.idvinc.com
 
-
 #pragma once
-//#include "SpeedGrassRT.h"
+// #include "SpeedGrassRT.h"
 #ifdef USE_SPEEDGRASS
 // forward reference
-//class CScene;
+// class CScene;
 class CMapOutdoor;
 
-
-///////////////////////////////////////////////////////////////////////  
+///////////////////////////////////////////////////////////////////////
 //	class CSpeedGrassWrapper declaration
 
-class CSpeedGrassWrapper : public CSpeedGrassRT
-{
+class CSpeedGrassWrapper : public CSpeedGrassRT {
 public:
-		CSpeedGrassWrapper( );
-		virtual ~CSpeedGrassWrapper( );
+  CSpeedGrassWrapper();
+  virtual ~CSpeedGrassWrapper();
 
-		void							SetMapOutdoor(CMapOutdoor* pMapOutdoor)	{ m_pMapOutdoor = pMapOutdoor; }
-		int								Draw(float fDensity);
-		bool							InitFromBsfFile(const char* pFilename,
-														unsigned int nNumBlades, 
-														unsigned int uiRows, 
-														unsigned int uiCols, 
-														float fCollisionDistance);
+  void SetMapOutdoor(CMapOutdoor *pMapOutdoor) { m_pMapOutdoor = pMapOutdoor; }
+  int Draw(float fDensity);
+  bool InitFromBsfFile(const char *pFilename, unsigned int nNumBlades,
+                       unsigned int uiRows, unsigned int uiCols,
+                       float fCollisionDistance);
 
 private:
-virtual float							Color(float fX, float fY, const float* pNormal, float* pTopColor, float* pBottomColor) const;
-virtual	float							Height(float fX, float fY, float* pNormal) const;
-		void							InitGraphics(void);
+  virtual float Color(float fX, float fY, const float *pNormal,
+                      float *pTopColor, float *pBottomColor) const;
+  virtual float Height(float fX, float fY, float *pNormal) const;
+  void InitGraphics(void);
 
-		CMapOutdoor *					m_pMapOutdoor;
+  CMapOutdoor *m_pMapOutdoor;
 
-		LPDIRECT3DTEXTURE9				m_lpD3DTexure8;
+  LPDIRECT3DTEXTURE9 m_lpD3DTexure8;
 
-		CGraphicImageInstance			m_GrassImageInstance;
+  CGraphicImageInstance m_GrassImageInstance;
 };
 
 #endif // USE_SPEEDGRASS

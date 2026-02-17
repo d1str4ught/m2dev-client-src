@@ -5,235 +5,241 @@
 class CRaceMotionData;
 class CAttributeData;
 
-#define COMBO_KEY									DWORD
-#define MAKE_COMBO_KEY(motion_mode, combo_type)		(	(DWORD(motion_mode) << 16) | (DWORD(combo_type))	)
-#define COMBO_KEY_GET_MOTION_MODE(key)				(	WORD(DWORD(key) >> 16 & 0xFFFF)						)
-#define COMBO_KEY_GET_COMBO_TYPE(key)				(	WORD(DWORD(key) & 0xFFFF)							)
+#define COMBO_KEY DWORD
+#define MAKE_COMBO_KEY(motion_mode, combo_type)                                \
+  ((DWORD(motion_mode) << 16) | (DWORD(combo_type)))
+#define COMBO_KEY_GET_MOTION_MODE(key) (WORD(DWORD(key) >> 16 & 0xFFFF))
+#define COMBO_KEY_GET_COMBO_TYPE(key) (WORD(DWORD(key) & 0xFFFF))
 
-class CRaceData
-{
-	public:
-		enum EParts
-		{
-			// Share index with server 
-			// ECharacterEquipmentPart도 수정해주세요.
-			//패킷 크기가 변합니다 서버와 상의후 추가해주세요.
-			PART_MAIN,
-			PART_WEAPON,
-			PART_HEAD,
-			PART_WEAPON_LEFT,
-			PART_HAIR,
-			
-			PART_MAX_NUM,
-		};
-		
-		enum
-		{
-			SMOKE_NUM = 4, 
-		};
+class CRaceData {
+public:
+  enum EParts {
+    // Share index with server
+    // ECharacterEquipmentPart도 수정해주세요.
+    // 패킷 크기가 변합니다 서버와 상의후 추가해주세요.
+    PART_MAIN,
+    PART_WEAPON,
+    PART_HEAD,
+    PART_WEAPON_LEFT,
+    PART_HAIR,
 
-		/////////////////////////////////////////////////////////////////////////////////
-		// Graphic Resource
+    PART_MAX_NUM,
+  };
 
-		// Model
-		typedef std::map<WORD, CGraphicThing*> TGraphicThingMap;
-		typedef std::map<DWORD, std::string> TAttachingBoneNameMap;
+  enum {
+    SMOKE_NUM = 4,
+  };
 
-		// Motion
-		typedef struct SMotion
-		{
-			BYTE byPercentage;
-			CGraphicThing * pMotion;
-			CRaceMotionData * pMotionData;
-		} TMotion;
-		typedef std::vector<TMotion> TMotionVector;
-		typedef std::map<WORD, TMotionVector> TMotionVectorMap;
+  /////////////////////////////////////////////////////////////////////////////////
+  // Graphic Resource
 
-		typedef struct SMotionModeData
-		{
-			WORD wMotionModeIndex;
+  // Model
+  typedef std::map<WORD, CGraphicThing *> TGraphicThingMap;
+  typedef std::map<DWORD, std::string> TAttachingBoneNameMap;
 
-			TMotionVectorMap MotionVectorMap;
-			
-			SMotionModeData() {}
-			virtual ~SMotionModeData() {}
-		} TMotionModeData;
-		typedef std::map<WORD, TMotionModeData*> TMotionModeDataMap;
-		typedef TMotionModeDataMap::iterator TMotionModeDataIterator; 
+  // Motion
+  typedef struct SMotion {
+    BYTE byPercentage;
+    CGraphicThing *pMotion;
+    CRaceMotionData *pMotionData;
+  } TMotion;
+  typedef std::vector<TMotion> TMotionVector;
+  typedef std::map<WORD, TMotionVector> TMotionVectorMap;
 
-		/////////////////////////////////////////////////////////////////////////////////
-		// Model Data
-		typedef struct SModelData
-		{
-			NRaceData::TAttachingDataVector AttachingDataVector;
-		} TModelData;
-		typedef std::map<DWORD, TModelData> TModelDataMap;
-		typedef TModelDataMap::iterator TModelDataMapIterator;
+  typedef struct SMotionModeData {
+    WORD wMotionModeIndex;
 
-		/////////////////////////////////////////////////////////////////////////////////
-		// Motion Data
-		typedef std::map<DWORD, CRaceMotionData*> TMotionDataMap;
+    TMotionVectorMap MotionVectorMap;
 
-		/////////////////////////////////////////////////////////////////////////////////
-		// Combo Data
-		typedef std::vector<DWORD> TComboIndexVector;
-		typedef struct SComboAttackData
-		{
-			TComboIndexVector ComboIndexVector;
-		} TComboData;
-		typedef std::map<DWORD, DWORD> TNormalAttackIndexMap;
-		typedef std::map<COMBO_KEY, TComboData> TComboAttackDataMap;
-		typedef TComboAttackDataMap::iterator TComboAttackDataIterator;
+    SMotionModeData() {}
+    virtual ~SMotionModeData() {}
+  } TMotionModeData;
+  typedef std::map<WORD, TMotionModeData *> TMotionModeDataMap;
+  typedef TMotionModeDataMap::iterator TMotionModeDataIterator;
 
-		struct SSkin
-		{
-			int m_ePart;
+  /////////////////////////////////////////////////////////////////////////////////
+  // Model Data
+  typedef struct SModelData {
+    NRaceData::TAttachingDataVector AttachingDataVector;
+  } TModelData;
+  typedef std::map<DWORD, TModelData> TModelDataMap;
+  typedef TModelDataMap::iterator TModelDataMapIterator;
 
-			std::string m_stSrcFileName;
-			std::string m_stDstFileName;
+  /////////////////////////////////////////////////////////////////////////////////
+  // Motion Data
+  typedef std::map<DWORD, CRaceMotionData *> TMotionDataMap;
 
-			SSkin()
-			{
-				m_ePart=0;
-			}
-			SSkin(const SSkin& c_rkSkin)
-			{
-				Copy(c_rkSkin);
-			}
-			void operator=(const SSkin& c_rkSkin)
-			{
-				Copy(c_rkSkin);
-			}
-			void Copy(const SSkin& c_rkSkin)
-			{
-				m_ePart=c_rkSkin.m_ePart;
-				m_stSrcFileName=c_rkSkin.m_stSrcFileName;
-				m_stDstFileName=c_rkSkin.m_stDstFileName;
-			}
-		};
+  /////////////////////////////////////////////////////////////////////////////////
+  // Combo Data
+  typedef std::vector<DWORD> TComboIndexVector;
+  typedef struct SComboAttackData {
+    TComboIndexVector ComboIndexVector;
+  } TComboData;
+  typedef std::map<DWORD, DWORD> TNormalAttackIndexMap;
+  typedef std::map<COMBO_KEY, TComboData> TComboAttackDataMap;
+  typedef TComboAttackDataMap::iterator TComboAttackDataIterator;
 
-		struct SHair
-		{
-			std::string m_stModelFileName;
-			std::vector<SSkin> m_kVct_kSkin;
-		};
+  struct SSkin {
+    int m_ePart;
 
-		struct SShape
-		{
-			std::string m_stModelFileName;
-			std::vector<SSkin> m_kVct_kSkin;
-		};
+    std::string m_stSrcFileName;
+    std::string m_stDstFileName;
 
-	public:
-		static CRaceData* New();
-		static void Delete(CRaceData* pkRaceData);
-		static void CreateSystem(UINT uCapacity, UINT uMotModeCapacity);
-		static void DestroySystem();
+    SSkin() { m_ePart = 0; }
+    SSkin(const SSkin &c_rkSkin) { Copy(c_rkSkin); }
+    void operator=(const SSkin &c_rkSkin) { Copy(c_rkSkin); }
+    void Copy(const SSkin &c_rkSkin) {
+      m_ePart = c_rkSkin.m_ePart;
+      m_stSrcFileName = c_rkSkin.m_stSrcFileName;
+      m_stDstFileName = c_rkSkin.m_stDstFileName;
+    }
+  };
 
-	public:
-		CRaceData();
-		virtual ~CRaceData();
+  struct SHair {
+    std::string m_stModelFileName;
+    std::vector<SSkin> m_kVct_kSkin;
+  };
 
-		void Destroy();
+  struct SShape {
+    std::string m_stModelFileName;
+    std::vector<SSkin> m_kVct_kSkin;
+  };
 
-		// Codes For Client
-		DWORD GetRaceIndex() const { return m_dwRaceIndex; }
-		const char* GetBaseModelFileName() const;
-		const char* GetAttributeFileName() const;
-		const char* GetMotionListFileName() const;
-		CGraphicThing * GetBaseModelThing();
-		CGraphicThing * GetLODModelThing();
-		CAttributeData * GetAttributeDataPtr();
-		BOOL GetAttachingBoneName(DWORD dwPartIndex, const char ** c_pszBoneName);
-		BOOL CreateMotionModeIterator(TMotionModeDataIterator & itor);
-		BOOL NextMotionModeIterator(TMotionModeDataIterator & itor);
+public:
+  static CRaceData *New();
+  static void Delete(CRaceData *pkRaceData);
+  static void CreateSystem(UINT uCapacity, UINT uMotModeCapacity);
+  static void DestroySystem();
 
-		BOOL GetMotionKey(WORD wMotionModeIndex, WORD wMotionIndex, MOTION_KEY * pMotionKey);
+public:
+  CRaceData();
+  virtual ~CRaceData();
 
-		BOOL GetMotionModeDataPointer(WORD wMotionMode, TMotionModeData ** ppMotionModeData);
-		BOOL GetModelDataPointer(DWORD dwModelIndex, const TModelData ** c_ppModelData);
-		BOOL GetMotionVectorPointer(WORD wMotionMode, WORD wMotionIndex, const TMotionVector ** c_ppMotionVector);
-		BOOL GetMotionDataPointer(WORD wMotionMode, WORD wMotionIndex, WORD wMotionSubIndex, CRaceMotionData** ppMotionData);
-		BOOL GetMotionDataPointer(DWORD dwMotionKey, CRaceMotionData ** ppMotionData);
+  void Destroy();
 
-		DWORD GetAttachingDataCount();
-		BOOL GetAttachingDataPointer(DWORD dwIndex, const NRaceData::TAttachingData ** c_ppAttachingData);
-		BOOL GetCollisionDataPointer(DWORD dwIndex, const NRaceData::TAttachingData ** c_ppAttachingData);
-		BOOL GetBodyCollisionDataPointer(const NRaceData::TAttachingData ** c_ppAttachingData);
+  // Codes For Client
+  DWORD GetRaceIndex() const { return m_dwRaceIndex; }
+  const char *GetBaseModelFileName() const;
+  const char *GetAttributeFileName() const;
+  const char *GetMotionListFileName() const;
+  CGraphicThing *GetBaseModelThing();
+  CGraphicThing *GetLODModelThing();
+  CAttributeData *GetAttributeDataPtr();
+  BOOL GetAttachingBoneName(DWORD dwPartIndex, const char **c_pszBoneName);
+  BOOL CreateMotionModeIterator(TMotionModeDataIterator &itor);
+  BOOL NextMotionModeIterator(TMotionModeDataIterator &itor);
 
-		BOOL IsTree();
-		const char * GetTreeFileName();
+  BOOL GetMotionKey(WORD wMotionModeIndex, WORD wMotionIndex,
+                    MOTION_KEY *pMotionKey);
 
-		///////////////////////////////////////////////////////////////////
-		// Setup by Script
-		BOOL LoadRaceData(const char * c_szFileName);
+  BOOL GetMotionModeDataPointer(WORD wMotionMode,
+                                TMotionModeData **ppMotionModeData);
+  BOOL GetModelDataPointer(DWORD dwModelIndex,
+                           const TModelData **c_ppModelData);
+  BOOL GetMotionVectorPointer(WORD wMotionMode, WORD wMotionIndex,
+                              const TMotionVector **c_ppMotionVector);
+  BOOL GetMotionDataPointer(WORD wMotionMode, WORD wMotionIndex,
+                            WORD wMotionSubIndex,
+                            CRaceMotionData **ppMotionData);
+  BOOL GetMotionDataPointer(DWORD dwMotionKey, CRaceMotionData **ppMotionData);
 
-		CGraphicThing* RegisterMotionData(WORD wMotionMode, WORD wMotionIndex, const char * c_szFileName, BYTE byPercentage = 100);
+  DWORD GetAttachingDataCount();
+  BOOL
+  GetAttachingDataPointer(DWORD dwIndex,
+                          const NRaceData::TAttachingData **c_ppAttachingData);
+  BOOL
+  GetCollisionDataPointer(DWORD dwIndex,
+                          const NRaceData::TAttachingData **c_ppAttachingData);
+  BOOL GetBodyCollisionDataPointer(
+      const NRaceData::TAttachingData **c_ppAttachingData);
 
-		///////////////////////////////////////////////////////////////////
-		// Setup by Python
-		void SetRace(DWORD dwRaceIndex);
-		void RegisterAttachingBoneName(DWORD dwPartIndex, const char * c_szBoneName);
+  BOOL IsTree();
+  const char *GetTreeFileName();
 
-		void RegisterMotionMode(WORD wMotionModeIndex);
-		void SetMotionModeParent(WORD wParentMotionModeIndex, WORD wMotionModeIndex);
-		void OLD_RegisterMotion(WORD wMotionModeIndex, WORD wMotionIndex, const char * c_szFileName, BYTE byPercentage = 100);
-		CGraphicThing* NEW_RegisterMotion(CRaceMotionData* pkMotionData, WORD wMotionModeIndex, WORD wMotionIndex, const char * c_szFileName, BYTE byPercentage = 100);
-		bool SetMotionRandomWeight(WORD wMotionModeIndex, WORD wMotionIndex, WORD wMotionSubIndex, BYTE byPercentage);
+  ///////////////////////////////////////////////////////////////////
+  // Setup by Script
+  BOOL LoadRaceData(const char *c_szFileName);
 
-		void RegisterNormalAttack(WORD wMotionModeIndex, WORD wMotionIndex);
-		BOOL GetNormalAttackIndex(WORD wMotionModeIndex, WORD * pwMotionIndex);
+  CGraphicThing *RegisterMotionData(WORD wMotionMode, WORD wMotionIndex,
+                                    const char *c_szFileName,
+                                    BYTE byPercentage = 100);
 
-		void ReserveComboAttack(WORD wMotionModeIndex, WORD wComboType, DWORD dwComboCount);
-		void RegisterComboAttack(WORD wMotionModeIndex, WORD wComboType, DWORD dwComboIndex, WORD wMotionIndex);
-		BOOL GetComboDataPointer(WORD wMotionModeIndex, WORD wComboType, TComboData ** ppComboData);
-		
-		void SetShapeModel(UINT eShape, const char* c_szModelFileName);
-		void AppendShapeSkin(UINT eShape, UINT ePart, const char* c_szSrcFileName, const char* c_szDstFileName);
+  ///////////////////////////////////////////////////////////////////
+  // Setup by Python
+  void SetRace(DWORD dwRaceIndex);
+  void RegisterAttachingBoneName(DWORD dwPartIndex, const char *c_szBoneName);
 
-		void SetHairSkin(UINT eHair, UINT ePart, const char* c_szModelFileName, const char* c_szSrcFileName, const char* c_szDstFileName);
+  void RegisterMotionMode(WORD wMotionModeIndex);
+  void SetMotionModeParent(WORD wParentMotionModeIndex, WORD wMotionModeIndex);
+  void OLD_RegisterMotion(WORD wMotionModeIndex, WORD wMotionIndex,
+                          const char *c_szFileName, BYTE byPercentage = 100);
+  CGraphicThing *NEW_RegisterMotion(CRaceMotionData *pkMotionData,
+                                    WORD wMotionModeIndex, WORD wMotionIndex,
+                                    const char *c_szFileName,
+                                    BYTE byPercentage = 100);
+  bool SetMotionRandomWeight(WORD wMotionModeIndex, WORD wMotionIndex,
+                             WORD wMotionSubIndex, BYTE byPercentage);
 
-		/////
+  void RegisterNormalAttack(WORD wMotionModeIndex, WORD wMotionIndex);
+  BOOL GetNormalAttackIndex(WORD wMotionModeIndex, WORD *pwMotionIndex);
 
-		DWORD GetSmokeEffectID(UINT eSmoke);
+  void ReserveComboAttack(WORD wMotionModeIndex, WORD wComboType,
+                          DWORD dwComboCount);
+  void RegisterComboAttack(WORD wMotionModeIndex, WORD wComboType,
+                           DWORD dwComboIndex, WORD wMotionIndex);
+  BOOL GetComboDataPointer(WORD wMotionModeIndex, WORD wComboType,
+                           TComboData **ppComboData);
 
-		const std::string& GetSmokeBone();
+  void SetShapeModel(UINT eShape, const char *c_szModelFileName);
+  void AppendShapeSkin(UINT eShape, UINT ePart, const char *c_szSrcFileName,
+                       const char *c_szDstFileName);
 
-		SHair* FindHair(UINT eHair);
-		SShape* FindShape(UINT eShape);
+  void SetHairSkin(UINT eHair, UINT ePart, const char *c_szModelFileName,
+                   const char *c_szSrcFileName, const char *c_szDstFileName);
 
-	protected:
-		void __Initialize();
+  /////
 
-		void __OLD_RegisterMotion(WORD wMotionMode, WORD wMotionIndex, const TMotion & rMotion);
+  DWORD GetSmokeEffectID(UINT eSmoke);
 
-		BOOL GetMotionVectorPointer(WORD wMotionMode, WORD wMotionIndex, TMotionVector ** ppMotionVector);
+  const std::string &GetSmokeBone();
 
-	protected:
-		DWORD m_dwRaceIndex;
-		DWORD m_adwSmokeEffectID[SMOKE_NUM];
-		
-		CGraphicThing * m_pBaseModelThing;
-		CGraphicThing * m_pLODModelThing;
+  SHair *FindHair(UINT eHair);
+  SShape *FindShape(UINT eShape);
 
-		std::string m_strBaseModelFileName;
-		std::string m_strTreeFileName;
-		std::string m_strAttributeFileName;
-		std::string m_strMotionListFileName;
-		std::string m_strSmokeBoneName;
+protected:
+  void __Initialize();
 
-		TModelDataMap m_ModelDataMap;
-		TMotionModeDataMap m_pMotionModeDataMap;
-		TAttachingBoneNameMap m_AttachingBoneNameMap;		
-		TComboAttackDataMap m_ComboAttackDataMap;
-		TNormalAttackIndexMap m_NormalAttackIndexMap;
-	
-		std::map<DWORD, SHair> m_kMap_dwHairKey_kHair;
-		std::map<DWORD, SShape> m_kMap_dwShapeKey_kShape;
+  void __OLD_RegisterMotion(WORD wMotionMode, WORD wMotionIndex,
+                            const TMotion &rMotion);
 
-		NRaceData::TAttachingDataVector m_AttachingDataVector;		
+  BOOL GetMotionVectorPointer(WORD wMotionMode, WORD wMotionIndex,
+                              TMotionVector **ppMotionVector);
 
-	protected:	
-		static CDynamicPool<TMotionModeData>	ms_MotionModeDataPool;
-		static CDynamicPool<CRaceData>			ms_kPool;
+protected:
+  DWORD m_dwRaceIndex;
+  DWORD m_adwSmokeEffectID[SMOKE_NUM];
+
+  CGraphicThing *m_pBaseModelThing;
+  CGraphicThing *m_pLODModelThing;
+
+  std::string m_strBaseModelFileName;
+  std::string m_strTreeFileName;
+  std::string m_strAttributeFileName;
+  std::string m_strMotionListFileName;
+  std::string m_strSmokeBoneName;
+
+  TModelDataMap m_ModelDataMap;
+  TMotionModeDataMap m_pMotionModeDataMap;
+  TAttachingBoneNameMap m_AttachingBoneNameMap;
+  TComboAttackDataMap m_ComboAttackDataMap;
+  TNormalAttackIndexMap m_NormalAttackIndexMap;
+
+  std::map<DWORD, SHair> m_kMap_dwHairKey_kHair;
+  std::map<DWORD, SShape> m_kMap_dwShapeKey_kShape;
+
+  NRaceData::TAttachingDataVector m_AttachingDataVector;
+
+protected:
+  static CDynamicPool<TMotionModeData> ms_MotionModeDataPool;
+  static CDynamicPool<CRaceData> ms_kPool;
 };

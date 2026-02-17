@@ -1,41 +1,29 @@
 #include "StdAfx.h"
 #include "NetDevice.h"
 
-CNetworkDevice::CNetworkDevice()
-{
-	Initialize();
+CNetworkDevice::CNetworkDevice() { Initialize(); }
+
+CNetworkDevice::~CNetworkDevice() { Destroy(); }
+
+void CNetworkDevice::Initialize() { m_isWSA = false; }
+
+void CNetworkDevice::Destroy() {
+  if (m_isWSA) {
+    WSACleanup();
+    m_isWSA = false;
+  }
 }
 
-CNetworkDevice::~CNetworkDevice()
-{
-	Destroy();	
-}
+bool CNetworkDevice::Create() {
+  Destroy();
 
-void CNetworkDevice::Initialize()
-{
-	m_isWSA=false;
-}
+  Initialize();
 
-void CNetworkDevice::Destroy()
-{
-	if (m_isWSA)
-	{
-		WSACleanup();
-		m_isWSA=false;
-	}
-}
+  WSADATA wsaData;
+  if (WSAStartup(MAKEWORD(1, 1), &wsaData) != 0)
+    return false;
 
-bool CNetworkDevice::Create()
-{
-	Destroy();
+  m_isWSA = true;
 
-	Initialize();
-
-	WSADATA wsaData;
-	if (WSAStartup(MAKEWORD(1, 1), &wsaData)!=0)
-		return false;
-
-	m_isWSA=true;
-	
-	return true;
+  return true;
 }

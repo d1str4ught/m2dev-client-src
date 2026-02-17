@@ -3,75 +3,73 @@
 #include "GrpImage.h"
 #include "Pool.h"
 
-class CGraphicMarkInstance
-{
-	public:
-		static DWORD Type();
-		BOOL IsType(DWORD dwType);
+class CGraphicMarkInstance {
+public:
+  static DWORD Type();
+  BOOL IsType(DWORD dwType);
 
-		void SetImageFileName(const char* c_szFileName);
-		const std::string& GetImageFileName();
+  void SetImageFileName(const char *c_szFileName);
+  const std::string &GetImageFileName();
 
-	public:
-		CGraphicMarkInstance();
-		virtual ~CGraphicMarkInstance();
+public:
+  CGraphicMarkInstance();
+  virtual ~CGraphicMarkInstance();
 
-		void Destroy();
+  void Destroy();
 
-		void Render();
+  void Render();
 
-		void SetDepth(float fDepth);
-		void SetDiffuseColor(float fr, float fg, float fb, float fa);
-		void SetPosition(float fx, float fy);
-		void SetIndex(UINT uIndex);
-		void SetScale(float fScale);
+  void SetDepth(float fDepth);
+  void SetDiffuseColor(float fr, float fg, float fb, float fa);
+  void SetPosition(float fx, float fy);
+  void SetIndex(UINT uIndex);
+  void SetScale(float fScale);
 
-		void Load();
-		bool IsEmpty() const;
+  void Load();
+  bool IsEmpty() const;
 
-		int GetWidth();
-		int GetHeight();
+  int GetWidth();
+  int GetHeight();
 
-		CGraphicTexture * GetTexturePointer();
-		const CGraphicTexture &	GetTextureReference() const;
-		CGraphicImage * GetGraphicImagePointer();
+  CGraphicTexture *GetTexturePointer();
+  const CGraphicTexture &GetTextureReference() const;
+  CGraphicImage *GetGraphicImagePointer();
 
-		bool operator == (const CGraphicMarkInstance & rhs) const;
+  bool operator==(const CGraphicMarkInstance &rhs) const;
 
-	protected:
-		enum
-		{
-			MARK_WIDTH = 16,
-			MARK_HEIGHT = 12,
-		};
+protected:
+  enum {
+    MARK_WIDTH = 16,
+    MARK_HEIGHT = 12,
+  };
 
-		void Initialize();
+  void Initialize();
 
-		virtual void OnRender();
-		virtual void OnSetImagePointer();
+  virtual void OnRender();
+  virtual void OnSetImagePointer();
 
-		virtual BOOL OnIsType(DWORD dwType);
+  virtual BOOL OnIsType(DWORD dwType);
 
-		void SetImagePointer(CGraphicImage * pImage);
+  void SetImagePointer(CGraphicImage *pImage);
 
-	protected:
-		D3DXCOLOR m_DiffuseColor;
-		D3DXVECTOR2 m_v2Position;
+protected:
+  D3DXCOLOR m_DiffuseColor;
+  D3DXVECTOR2 m_v2Position;
 
-		UINT m_uIndex;
-	
-		FLOAT m_fScale;
-		FLOAT m_fDepth;
+  UINT m_uIndex;
 
-		CGraphicImage::TRef m_roImage;
-		std::string m_stImageFileName;
+  FLOAT m_fScale;
+  FLOAT m_fDepth;
 
-	public:
-		static void CreateSystem(UINT uCapacity);
-		static void DestroySystem();
+  CGraphicImage::TRef m_roImage;
+  std::string m_stImageFileName;
 
-		static CGraphicMarkInstance* New();
-		static void Delete(CGraphicMarkInstance* pkImgInst);
+public:
+  static void CreateSystem(UINT uCapacity);
+  static void DestroySystem();
 
-		static CDynamicPool<CGraphicMarkInstance> ms_kPool;
+  static CGraphicMarkInstance *New();
+  static void Delete(CGraphicMarkInstance *pkImgInst);
+
+  static CDynamicPool<CGraphicMarkInstance> ms_kPool;
 };

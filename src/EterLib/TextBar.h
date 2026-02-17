@@ -5,28 +5,27 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
-class CTextBar : public CDibBar
-{
-	public:
-		CTextBar(int fontSize, bool isBold);
-		virtual ~CTextBar();
+class CTextBar : public CDibBar {
+public:
+  CTextBar(int fontSize, bool isBold);
+  virtual ~CTextBar();
 
-		void TextOut(int ix, int iy, const char * c_szText);
-		void SetTextColor(int r, int g, int b);
-		void GetTextExtent(const char * c_szText, SIZE* p_size);
+  void TextOut(int ix, int iy, const char *c_szText);
+  void SetTextColor(int r, int g, int b);
+  void GetTextExtent(const char *c_szText, SIZE *p_size);
 
-	protected:
-		void __SetFont(int fontSize, bool isBold);
+protected:
+  void __SetFont(int fontSize, bool isBold);
 
-		void OnCreate();
+  void OnCreate();
 
-	protected:
-		FT_Face m_ftFace;
-		DWORD m_textColor;
+protected:
+  FT_Face m_ftFace;
+  DWORD m_textColor;
 
-		int		m_fontSize;
-		bool	m_isBold;
+  int m_fontSize;
+  bool m_isBold;
 
-		int		m_ascender;
-		int		m_lineHeight;
+  int m_ascender;
+  int m_lineHeight;
 };

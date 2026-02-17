@@ -2,21 +2,20 @@
 
 #include "GrpScreen.h"
 
-class CScreenFilter : public CScreen
-{
-	public:
-		CScreenFilter();
-		virtual ~CScreenFilter();
+class CScreenFilter : public CScreen {
+public:
+  CScreenFilter();
+  virtual ~CScreenFilter();
 
-		void SetEnable(BOOL bFlag);
-		void SetBlendType(BYTE bySrcType, BYTE byDestType);
-		void SetColor(const D3DXCOLOR & c_rColor);
+  void SetEnable(BOOL bFlag);
+  void SetBlendType(BYTE bySrcType, BYTE byDestType);
+  void SetColor(const D3DXCOLOR &c_rColor);
 
-		void Render();
+  void Render();
 
-	protected:
-		BOOL m_bEnable;
-		BYTE m_bySrcType;
-		BYTE m_byDestType;
-		D3DXCOLOR m_Color;
+protected:
+  BOOL m_bEnable;
+  BYTE m_bySrcType;
+  BYTE m_byDestType;
+  D3DXCOLOR m_Color;
 };

@@ -5,254 +5,234 @@
 #include "EterBase/Timer.h"
 #include "PackLib/PackManager.h"
 
-SoundEngine::SoundEngine()
-{
+SoundEngine::SoundEngine() {}
+
+SoundEngine::~SoundEngine() {
+  for (auto &[name, instance] : m_Sounds2D)
+    instance.Destroy();
+
+  for (auto &instance : m_Sounds3D)
+    instance.Destroy();
+
+  ma_engine_uninit(&m_Engine);
+  m_Files.clear();
+  m_Sounds2D.clear();
 }
 
-SoundEngine::~SoundEngine()
-{
-	for (auto& [name, instance] : m_Sounds2D)
-		instance.Destroy();
+bool SoundEngine::Initialize() {
+  if (!MD_ASSERT(ma_engine_init(NULL, &m_Engine) == MA_SUCCESS)) {
+    TraceError("SoundEngine::Initialize: Failed to initialize engine.");
+    return false;
+  }
 
-	for (auto& instance : m_Sounds3D)
-		instance.Destroy();
-
-	ma_engine_uninit(&m_Engine);
-	m_Files.clear();
-	m_Sounds2D.clear();
+  ma_engine_listener_set_position(&m_Engine, 0, 0, 0, 0); // engine
+  SetListenerPosition(0.0f, 0.0f, 0.0f);                  // character
+  SetListenerOrientation(0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f);
+  return true;
 }
 
-bool SoundEngine::Initialize()
-{
-	if (!MD_ASSERT(ma_engine_init(NULL, &m_Engine) == MA_SUCCESS))
-	{
-		TraceError("SoundEngine::Initialize: Failed to initialize engine.");
-		return false;
-	}
-
-	ma_engine_listener_set_position(&m_Engine, 0, 0, 0, 0); // engine
-	SetListenerPosition(0.0f, 0.0f, 0.0f); // character
-	SetListenerOrientation(0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f);
-	return true;
+void SoundEngine::SetSoundVolume(float volume) {
+  m_SoundVolume = std::clamp<float>(volume, 0.0, 1.0);
 }
 
-void SoundEngine::SetSoundVolume(float volume)
-{
-	m_SoundVolume = std::clamp<float>(volume, 0.0, 1.0);
+bool SoundEngine::PlaySound2D(const std::string &name) {
+  if (!Internal_LoadSoundFromPack(name))
+    return false;
+
+  auto &instance =
+      m_Sounds2D[name]; // 2d sounds are persistent, no need to destroy
+  instance.InitFromBuffer(m_Engine, m_Files[name], name);
+  instance.Config3D(false);
+  instance.SetVolume(m_SoundVolume);
+  return instance.Play();
 }
 
-bool SoundEngine::PlaySound2D(const std::string& name)
-{
-	if (!Internal_LoadSoundFromPack(name))
-		return false;
+MaSoundInstance *SoundEngine::PlaySound3D(const std::string &name, float fx,
+                                          float fy, float fz) {
+  if (auto instance = Internal_GetInstance3D(name)) {
+    constexpr float minDist = 100.0f;  // 1m
+    constexpr float maxDist = 5000.0f; // 50m
 
-	auto& instance = m_Sounds2D[name]; // 2d sounds are persistent, no need to destroy
-	instance.InitFromBuffer(m_Engine, m_Files[name], name);
-	instance.Config3D(false);
-	instance.SetVolume(m_SoundVolume);
-	return instance.Play();
+    instance->SetPosition(fx - m_CharacterPosition.x,
+                          fy - m_CharacterPosition.y,
+                          fz - m_CharacterPosition.z);
+    instance->Config3D(true, minDist, maxDist);
+    instance->SetVolume(m_SoundVolume);
+    instance->Play();
+    return instance;
+  }
+  return nullptr;
 }
 
-MaSoundInstance* SoundEngine::PlaySound3D(const std::string& name, float fx, float fy, float fz)
-{
-	if (auto instance = Internal_GetInstance3D(name))
-	{
-		constexpr float minDist = 100.0f; // 1m
-		constexpr float maxDist = 5000.0f; // 50m
-
-		instance->SetPosition(fx - m_CharacterPosition.x,
-							  fy - m_CharacterPosition.y,
-							  fz - m_CharacterPosition.z);
-		instance->Config3D(true, minDist, maxDist);
-		instance->SetVolume(m_SoundVolume);
-		instance->Play();
-		return instance;
-	}
-	return nullptr;
+MaSoundInstance *SoundEngine::PlayAmbienceSound3D(float fx, float fy, float fz,
+                                                  const std::string &name,
+                                                  int loopCount) {
+  auto vec3 = ma_engine_listener_get_position(&m_Engine, 0);
+  float dx = fx - vec3.x;
+  float dy = fy - vec3.y;
+  float dz = fz - vec3.z;
+  float distance = sqrtf(dx * dx + dy * dy + dz * dz);
+  return PlaySound3D(name, fx, fy, fz);
 }
 
-MaSoundInstance* SoundEngine::PlayAmbienceSound3D(float fx, float fy, float fz, const std::string& name, int loopCount)
-{
-	auto vec3 = ma_engine_listener_get_position(&m_Engine, 0);
-	float dx = fx - vec3.x;
-	float dy = fy - vec3.y;
-	float dz = fz - vec3.z;
-	float distance = sqrtf(dx * dx + dy * dy + dz * dz);
-	return PlaySound3D(name, fx, fy, fz);
+void SoundEngine::StopAllSound3D() {
+  for (auto &instance : m_Sounds3D)
+    instance.Stop();
 }
 
-void SoundEngine::StopAllSound3D()
-{
-	for (auto& instance : m_Sounds3D)
-		instance.Stop();
+void SoundEngine::UpdateSoundInstance(
+    float fx, float fy, float fz, uint32_t dwcurFrame,
+    const NSound::TSoundInstanceVector *c_pSoundInstanceVector,
+    bool checkFrequency) {
+  for (uint32_t i = 0; i < c_pSoundInstanceVector->size(); ++i) {
+    const NSound::TSoundInstance &c_rSoundInstance =
+        c_pSoundInstanceVector->at(i);
+    if (c_rSoundInstance.dwFrame == dwcurFrame) {
+      if (checkFrequency) {
+        float &lastPlay =
+            m_PlaySoundHistoryMap[c_rSoundInstance.strSoundFileName];
+        float diff = CTimer::Instance().GetCurrentSecond() - lastPlay;
+
+        if (CTimer::Instance().GetCurrentSecond() - lastPlay < 0.3f)
+          return;
+
+        lastPlay = CTimer::Instance().GetCurrentSecond();
+      }
+
+      PlaySound3D(c_rSoundInstance.strSoundFileName, fx, fy, fz);
+    }
+  }
 }
 
-void SoundEngine::UpdateSoundInstance(float fx, float fy, float fz, uint32_t dwcurFrame, const NSound::TSoundInstanceVector* c_pSoundInstanceVector, bool checkFrequency)
-{
-	for (uint32_t i = 0; i < c_pSoundInstanceVector->size(); ++i)
-	{
-		const NSound::TSoundInstance& c_rSoundInstance = c_pSoundInstanceVector->at(i);
-		if (c_rSoundInstance.dwFrame == dwcurFrame)
-		{
-			if (checkFrequency)
-			{
-				float& lastPlay = m_PlaySoundHistoryMap[c_rSoundInstance.strSoundFileName];
-				float diff = CTimer::Instance().GetCurrentSecond() - lastPlay;
+bool SoundEngine::FadeInMusic(const std::string &path,
+                              float targetVolume /* 1.0f by default */,
+                              float fadeInDurationSecondsFromMin) {
+  if (path.empty())
+    return false;
 
-				if (CTimer::Instance().GetCurrentSecond() - lastPlay < 0.3f)
-					return;
+  auto &fadeOutMusic = m_Music[m_CurrentMusicIndex];
+  if (fadeOutMusic.IsPlaying() && path == fadeOutMusic.GetIdentity()) {
+    fadeOutMusic.Fade(targetVolume, fadeInDurationSecondsFromMin);
+    return fadeOutMusic.Resume();
+  }
 
-				lastPlay = CTimer::Instance().GetCurrentSecond();
-			}
+  // We're basically just swapping
+  FadeOutMusic(fadeOutMusic.GetIdentity());
+  m_CurrentMusicIndex = int(!m_CurrentMusicIndex);
 
-			PlaySound3D(c_rSoundInstance.strSoundFileName, fx, fy, fz);
-		}
-	}
+  auto &music = m_Music[m_CurrentMusicIndex];
+  music.Destroy();
+  music.InitFromFile(m_Engine, path);
+  music.Config3D(false);
+  music.Loop();
+  music.SetVolume(0.0f);
+  music.Fade(targetVolume, fadeInDurationSecondsFromMin);
+  return music.Play();
 }
 
-bool SoundEngine::FadeInMusic(const std::string& path, float targetVolume /* 1.0f by default */, float fadeInDurationSecondsFromMin)
-{
-	if (path.empty())
-		return false;
-
-	auto& fadeOutMusic = m_Music[m_CurrentMusicIndex];
-	if (fadeOutMusic.IsPlaying() && path == fadeOutMusic.GetIdentity())
-	{
-		fadeOutMusic.Fade(targetVolume, fadeInDurationSecondsFromMin);
-		return fadeOutMusic.Resume();
-	}
-
-	// We're basically just swapping
-	FadeOutMusic(fadeOutMusic.GetIdentity());
-	m_CurrentMusicIndex = int(!m_CurrentMusicIndex);
-
-	auto& music = m_Music[m_CurrentMusicIndex];
-	music.Destroy();
-	music.InitFromFile(m_Engine, path);
-	music.Config3D(false);
-	music.Loop();
-	music.SetVolume(0.0f);
-	music.Fade(targetVolume, fadeInDurationSecondsFromMin);
-	return music.Play();
+void SoundEngine::FadeOutMusic(const std::string &name, float targetVolume,
+                               float fadeOutDurationSecondsFromMax) {
+  for (auto &music : m_Music) {
+    if (music.GetIdentity() == name)
+      music.Fade(targetVolume, fadeOutDurationSecondsFromMax);
+  }
 }
 
-void SoundEngine::FadeOutMusic(const std::string& name, float targetVolume, float fadeOutDurationSecondsFromMax)
-{
-	for (auto& music : m_Music)
-	{
-		if (music.GetIdentity() == name)
-			music.Fade(targetVolume, fadeOutDurationSecondsFromMax);
-	}
+void SoundEngine::FadeOutAllMusic() {
+  for (auto &music : m_Music)
+    FadeOutMusic(music.GetIdentity());
 }
 
-void SoundEngine::FadeOutAllMusic()
-{
-	for (auto& music : m_Music)
-		FadeOutMusic(music.GetIdentity());
+void SoundEngine::SetMusicVolume(float volume) {
+  m_MusicVolume = std::clamp<float>(volume, 0.0f, 1.0f);
+  m_Music[m_CurrentMusicIndex].StopFading();
+  m_Music[m_CurrentMusicIndex].SetVolume(m_MusicVolume);
 }
 
-void SoundEngine::SetMusicVolume(float volume)
-{
-	m_MusicVolume = std::clamp<float>(volume, 0.0f, 1.0f);
-	m_Music[m_CurrentMusicIndex].StopFading();
-	m_Music[m_CurrentMusicIndex].SetVolume(m_MusicVolume);
+float SoundEngine::GetMusicVolume() const { return m_MusicVolume; }
+
+void SoundEngine::SaveVolume(bool isMinimized) {
+  constexpr float ratePerSecond = 1.0f / CS_CLIENT_FPS;
+  // 1.0 to 0 in 1s if minimized, 3s if just out of focus
+  const float durationOnFullVolume = isMinimized ? 1.0f : 3.0f;
+
+  float outOfFocusVolume = 0.35f;
+  if (m_MasterVolume <= outOfFocusVolume)
+    outOfFocusVolume = m_MasterVolume;
+
+  m_MasterVolumeFadeTarget = isMinimized ? 0.0f : outOfFocusVolume;
+  m_MasterVolumeFadeRatePerFrame = -ratePerSecond / durationOnFullVolume;
 }
 
-float SoundEngine::GetMusicVolume() const
-{
-	return m_MusicVolume;
+void SoundEngine::RestoreVolume() {
+  constexpr float ratePerSecond = 1.0f / CS_CLIENT_FPS;
+  constexpr float durationToFullVolume = 4.0f; // 0 to 1.0 in 4s
+  m_MasterVolumeFadeTarget = m_MasterVolume;
+  m_MasterVolumeFadeRatePerFrame = ratePerSecond / durationToFullVolume;
 }
 
-void SoundEngine::SaveVolume(bool isMinimized)
-{
-	constexpr float ratePerSecond = 1.0f / CS_CLIENT_FPS;
-	// 1.0 to 0 in 1s if minimized, 3s if just out of focus
-	const float durationOnFullVolume = isMinimized ? 1.0f : 3.0f;
-
-	float outOfFocusVolume = 0.35f;
-	if (m_MasterVolume <= outOfFocusVolume)
-		outOfFocusVolume = m_MasterVolume;
-
-	m_MasterVolumeFadeTarget = isMinimized ? 0.0f : outOfFocusVolume;
-	m_MasterVolumeFadeRatePerFrame = -ratePerSecond / durationOnFullVolume;
+void SoundEngine::SetMasterVolume(float volume) {
+  m_MasterVolume = volume;
+  ma_engine_set_volume(&m_Engine, volume);
 }
 
-void SoundEngine::RestoreVolume()
-{
-	constexpr float ratePerSecond = 1.0f / CS_CLIENT_FPS;
-	constexpr float durationToFullVolume = 4.0f; // 0 to 1.0 in 4s
-	m_MasterVolumeFadeTarget = m_MasterVolume;
-	m_MasterVolumeFadeRatePerFrame = ratePerSecond / durationToFullVolume;
+void SoundEngine::SetListenerPosition(float x, float y, float z) {
+  m_CharacterPosition.x = x;
+  m_CharacterPosition.y = y;
+  m_CharacterPosition.z = z;
 }
 
-void SoundEngine::SetMasterVolume(float volume)
-{
-	m_MasterVolume = volume;
-	ma_engine_set_volume(&m_Engine, volume);
+void SoundEngine::SetListenerOrientation(float forwardX, float forwardY,
+                                         float forwardZ, float upX, float upY,
+                                         float upZ) {
+  ma_engine_listener_set_direction(&m_Engine, 0, forwardX, forwardY, -forwardZ);
+  ma_engine_listener_set_world_up(&m_Engine, 0, upX, -upY, upZ);
 }
 
-void SoundEngine::SetListenerPosition(float x, float y, float z)
-{
-	m_CharacterPosition.x = x;
-	m_CharacterPosition.y = y;
-	m_CharacterPosition.z = z;
+void SoundEngine::Update() {
+  for (auto &music : m_Music)
+    music.Update();
+
+  if (m_MasterVolumeFadeRatePerFrame) {
+    float volume =
+        ma_engine_get_volume(&m_Engine) + m_MasterVolumeFadeRatePerFrame;
+    if ((m_MasterVolumeFadeRatePerFrame > 0.0f &&
+         volume >= m_MasterVolumeFadeTarget) ||
+        (m_MasterVolumeFadeRatePerFrame < 0.0f &&
+         volume <= m_MasterVolumeFadeTarget)) {
+      volume = m_MasterVolumeFadeTarget;
+      m_MasterVolumeFadeRatePerFrame = 0.0f;
+    }
+    ma_engine_set_volume(&m_Engine, volume);
+  }
 }
 
-void SoundEngine::SetListenerOrientation(float forwardX, float forwardY, float forwardZ,
-										 float upX, float upY, float upZ)
-{
-	ma_engine_listener_set_direction(&m_Engine, 0, forwardX, forwardY, -forwardZ);
-	ma_engine_listener_set_world_up(&m_Engine, 0, upX, -upY, upZ);
+MaSoundInstance *SoundEngine::Internal_GetInstance3D(const std::string &name) {
+  if (Internal_LoadSoundFromPack(name)) {
+    for (auto &instance : m_Sounds3D) {
+      if (!instance.IsPlaying()) {
+        instance.Destroy();
+        instance.InitFromBuffer(m_Engine, m_Files[name], name);
+        return &instance;
+      }
+    }
+  }
+  return nullptr;
 }
 
-void SoundEngine::Update()
-{
-	for (auto& music : m_Music)
-		music.Update();
+bool SoundEngine::Internal_LoadSoundFromPack(const std::string &name) {
+  if (m_Files.find(name) == m_Files.end()) {
+    TPackFile soundFile;
+    if (!CPackManager::Instance().GetFile(name, soundFile)) {
+      TraceError("Internal_LoadSoundFromPack: SoundEngine: Failed to register "
+                 "file '%s' - not found.",
+                 name.c_str());
+      return false;
+    }
 
-	if (m_MasterVolumeFadeRatePerFrame)
-	{
-		float volume = ma_engine_get_volume(&m_Engine) + m_MasterVolumeFadeRatePerFrame;
-		if ((m_MasterVolumeFadeRatePerFrame > 0.0f && volume >= m_MasterVolumeFadeTarget) || (m_MasterVolumeFadeRatePerFrame < 0.0f && volume <= m_MasterVolumeFadeTarget))
-		{
-			volume = m_MasterVolumeFadeTarget;
-			m_MasterVolumeFadeRatePerFrame = 0.0f;
-		}
-		ma_engine_set_volume(&m_Engine, volume);
-	}
-}
-
-MaSoundInstance* SoundEngine::Internal_GetInstance3D(const std::string& name)
-{
-	if (Internal_LoadSoundFromPack(name))
-	{
-		for (auto& instance : m_Sounds3D)
-		{
-			if (!instance.IsPlaying())
-			{
-				instance.Destroy();
-				instance.InitFromBuffer(m_Engine, m_Files[name], name);
-				return &instance;
-			}
-		}
-	}
-	return nullptr;
-}
-
-bool SoundEngine::Internal_LoadSoundFromPack(const std::string& name)
-{
-	if (m_Files.find(name) == m_Files.end())
-	{
-		TPackFile soundFile;
-		if (!CPackManager::Instance().GetFile(name, soundFile))
-		{
-			TraceError("Internal_LoadSoundFromPack: SoundEngine: Failed to register file '%s' - not found.", name.c_str());
-			return false;
-		}
-
-		auto& buffer = m_Files[name];
-		buffer.resize(soundFile.size());
-		memcpy(buffer.data(), soundFile.data(), soundFile.size());
-	}
-	return true;
+    auto &buffer = m_Files[name];
+    buffer.resize(soundFile.size());
+    memcpy(buffer.data(), soundFile.data(), soundFile.size());
+  }
+  return true;
 }
