@@ -30,9 +30,6 @@ void CMapOutdoor::__RenderTerrain_RenderSoftwareTransformPatch()
 	std::pair<float, long> fog_far(kTPRS.m_fFogFarDistance+800.0f, 0);
 	std::pair<float, long> fog_near(kTPRS.m_fFogNearDistance-3200.0f, 0);
 
-	if (mc_pEnvironmentData && mc_pEnvironmentData->bDensityFog)
-		fog_far.first = 1e10f;
-
 	std::vector<std::pair<float ,long> >::iterator far_it = std::upper_bound(m_PatchVector.begin(),m_PatchVector.end(),fog_far);
 	std::vector<std::pair<float ,long> >::iterator near_it = std::upper_bound(m_PatchVector.begin(),m_PatchVector.end(),fog_near);
 
@@ -311,6 +308,9 @@ void CMapOutdoor::__SoftwareTransformPatch_RenderPatchNone(SoftwareTransformPatc
 	{		
 		pkPosition=akPosition+uIndex;
 		D3DXVec3Transform(pkPosition, &akSrcVertex[uIndex].kPosition, &m4Frustum);
+		if (pkPosition->w < 0.0001f)
+			pkPosition->w = 0.0001f;
+
 		pkPosition->w=1.0f/pkPosition->w;
 		pkPosition->z*=pkPosition->w;
 		pkPosition->y=(pkPosition->y*pkPosition->w-1.0f)*fScreenHalfHeight;	
@@ -416,10 +416,74 @@ void CMapOutdoor::__SoftwareTransformPatch_RestoreFogShadowRenderState()
 
 void CMapOutdoor::__SoftwareTransformPatch_ApplyRenderState()
 {
+    DWORD dwFogColor = 0xffffffff;
+    if (mc_pEnvironmentData)
+        dwFogColor = mc_pEnvironmentData->FogColor;
+
+    STATEMANAGER.SaveRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+    STATEMANAGER.SaveRenderState(D3DRS_ALPHATESTENABLE, TRUE);
+    STATEMANAGER.SaveRenderState(D3DRS_ALPHAREF, 0x00000000);
+    STATEMANAGER.SaveRenderState(D3DRS_ALPHAFUNC, D3DCMP_GREATER);
+    STATEMANAGER.SaveRenderState(D3DRS_TEXTUREFACTOR, dwFogColor);
+    STATEMANAGER.SetRenderState(D3DRS_LIGHTING, FALSE);
+    STATEMANAGER.SetRenderState(D3DRS_FOGENABLE, FALSE);
+
+    STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+    STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+    STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+    STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+    STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+
+    // Use SetSamplerState for addressing in D3D9Ex (D3DTSS_ADDRESSx is deprecated)
+    STATEMANAGER.SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_WRAP);
+    STATEMANAGER.SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_WRAP);
+    STATEMANAGER.SetBestFiltering(0);
+
+    STATEMANAGER.SetTextureStageState(1, D3DTSS_COLORARG1, D3DTA_CURRENT);
+    STATEMANAGER.SetTextureStageState(1, D3DTSS_COLORARG2, D3DTA_TEXTURE);
+    STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+    STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+    STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAARG2, D3DTA_CURRENT);
+    STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+
+    // Use SetSamplerState for addressing in D3D9Ex (D3DTSS_ADDRESSx is deprecated)
+    STATEMANAGER.SetSamplerState(1, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+    STATEMANAGER.SetSamplerState(1, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+    STATEMANAGER.SetBestFiltering(1);
+
+    CSpeedTreeWrapper::ms_bSelfShadowOn = true;
+
+    m_iRenderedSplatNumSqSum = 0;
+    m_iRenderedPatchNum      = 0;
+    m_iRenderedSplatNum      = 0;
+    m_RenderedTextureNumVector.clear();
+    m_matWorldForCommonUse._41 = 0.0f;
+    m_matWorldForCommonUse._42 = 0.0f;
+    STATEMANAGER.SetTransform(D3DTS_WORLD, &m_matWorldForCommonUse);
 }
 
 void CMapOutdoor::__SoftwareTransformPatch_RestoreRenderState(DWORD dwFogEnable)
 {
+    STATEMANAGER.SetRenderState(D3DRS_LIGHTING, TRUE);
+    STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+    STATEMANAGER.SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_CURRENT);
+    STATEMANAGER.SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+    STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+    STATEMANAGER.SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+    STATEMANAGER.SetTextureStageState(1, D3DTSS_COLORARG1, D3DTA_CURRENT);
+    STATEMANAGER.SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+    STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+    STATEMANAGER.SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+    STATEMANAGER.SetRenderState(D3DRS_FOGENABLE, dwFogEnable);
+
+    std::sort(m_RenderedTextureNumVector.begin(), m_RenderedTextureNumVector.end());
+
+    STATEMANAGER.RestoreRenderState(D3DRS_TEXTUREFACTOR);
+    STATEMANAGER.RestoreRenderState(D3DRS_ALPHABLENDENABLE);
+    STATEMANAGER.RestoreRenderState(D3DRS_ALPHATESTENABLE);
+    STATEMANAGER.RestoreRenderState(D3DRS_ALPHAREF);
+    STATEMANAGER.RestoreRenderState(D3DRS_ALPHAFUNC);
+
 }
 
 void CMapOutdoor::__SoftwareTransformPatch_BuildPipeline(SoftwareTransformPatch_SRenderState& rkTPRS)
@@ -461,21 +525,10 @@ void CMapOutdoor::__SoftwareTransformPatch_BuildPipeline(SoftwareTransformPatch_
 	rkTPRS.m_m4Proj = m4Proj;
 	rkTPRS.m_m4DynamicShadow = m_matLightView * m_matDynamicShadowScale;
 
-	D3DXVECTOR3 kFogNearVector;
-	const auto farvv = D3DXVECTOR3(0.0f, 0.0f, -rkTPRS.m_fFogNearDistance);
-	D3DXVec3TransformCoord(&kFogNearVector, &farvv, &rkTPRS.m_m4Proj);
+	rkTPRS.m_fFogNearTransZ = rkTPRS.m_fFogNearDistance;
+	rkTPRS.m_fFogFarTransZ  = rkTPRS.m_fFogFarDistance;
+	rkTPRS.m_fFogLenInv     = 1.0f / (rkTPRS.m_fFogFarDistance - rkTPRS.m_fFogNearDistance);
 
-	D3DXVECTOR3 kFogFarVector;
-	const auto nearvv = D3DXVECTOR3(0.0f, 0.0f, -rkTPRS.m_fFogFarDistance);
-	D3DXVec3TransformCoord(&kFogFarVector, &nearvv, &rkTPRS.m_m4Proj);
-	
-	float fFogNear = kFogNearVector.z;
-	float fFogFar = kFogFarVector.z;
-	float fFogLenInv = 1.0f / (fFogFar-fFogNear);
-	
-	rkTPRS.m_fFogNearTransZ = fFogNear;
-	rkTPRS.m_fFogFarTransZ = fFogFar;
-	rkTPRS.m_fFogLenInv = fFogLenInv;
 
 }
 		
@@ -525,6 +578,9 @@ bool CMapOutdoor::__SoftwareTransformPatch_SetTransform(SoftwareTransformPatch_S
 			D3DXVec3Transform(&kWorkVertex.kPosition, pkSrcPosition, &m4Frustum);
 			fLocalX=pkSrcPosition->x+fTerrainBaseX;
 			fLocalY=pkSrcPosition->y+fTerrainBaseY;	
+			if (kWorkVertex.kPosition.w < 0.0001f)
+				kWorkVertex.kPosition.w = 0.0001f;
+			float fViewDepth = kWorkVertex.kPosition.w;
 			kWorkVertex.kPosition.w=1.0f/kWorkVertex.kPosition.w;
 			kWorkVertex.kPosition.x*=kWorkVertex.kPosition.w;
 			kWorkVertex.kPosition.y*=kWorkVertex.kPosition.w;
@@ -541,9 +597,9 @@ bool CMapOutdoor::__SoftwareTransformPatch_SetTransform(SoftwareTransformPatch_S
 			kWorkVertex.kTexDynamicShadow.x=0.0f;
 			kWorkVertex.kTexDynamicShadow.y=0.0f;
 
-			fFogCur=(fFogFar-kWorkVertex.kPosition.z)*fFogLenInv;
+			fFogCur=(fFogFar-fViewDepth)*fFogLenInv;
 			if (fFogCur<0.0f)
-				kWorkVertex.dwFog=kWorkVertex.dwDiffuse=0x0000000|(kWorkVertex.dwDiffuse&0xffffff);
+				kWorkVertex.dwFog=kWorkVertex.dwDiffuse=0x00000000|(kWorkVertex.dwDiffuse&0xffffff);
 			else if (fFogCur>1.0f)
 				kWorkVertex.dwFog=kWorkVertex.dwDiffuse=0xFF000000|(kWorkVertex.dwDiffuse&0xffffff);
 			else
@@ -564,6 +620,8 @@ bool CMapOutdoor::__SoftwareTransformPatch_SetTransform(SoftwareTransformPatch_S
 			D3DXVec3Transform(&kWorkVertex.kPosition, pkSrcPosition, &m4Frustum);
 			fLocalX=pkSrcPosition->x+fTerrainBaseX;
 			fLocalY=pkSrcPosition->y+fTerrainBaseY;	
+			if (kWorkVertex.kPosition.w < 0.0001f)
+				kWorkVertex.kPosition.w = 0.0001f;
 			kWorkVertex.kPosition.w=1.0f/kWorkVertex.kPosition.w;
 			kWorkVertex.kPosition.x*=kWorkVertex.kPosition.w;
 			kWorkVertex.kPosition.y*=kWorkVertex.kPosition.w;
@@ -611,12 +669,22 @@ bool CMapOutdoor::__SoftwareTransformPatch_SetSplatStream(SoftwareTransformPatch
 	DWORD dwVBSize=sizeof(SoftwareTransformPatch_SSplatVertex)*CTerrainPatch::TERRAIN_VERTEX_COUNT;
 	SoftwareTransformPatch_SSplatVertex* akDstVertex;
 	if (FAILED(
-		pkVB->Lock(0, dwVBSize, (void**)&akDstVertex, 0)//D3DLOCK_DISCARD)
+		pkVB->Lock(0, dwVBSize, (void**)&akDstVertex, D3DLOCK_DISCARD)
 	)) return false;
 
+	SoftwareTransformPatch_STLVertex* pkSrcVertex2;
+	SoftwareTransformPatch_SSplatVertex* pkDstVertex2;
 	for (UINT uIndex=0; uIndex!=CTerrainPatch::TERRAIN_VERTEX_COUNT; ++uIndex)
-		*(akDstVertex+uIndex)=*((SoftwareTransformPatch_SSplatVertex*)(akSrcVertex+uIndex));
-		
+	{
+		pkSrcVertex2 = akSrcVertex + uIndex;
+		pkDstVertex2 = akDstVertex + uIndex;
+		pkDstVertex2->kPosition  = pkSrcVertex2->kPosition;
+		pkDstVertex2->dwDiffuse  = pkSrcVertex2->dwDiffuse;
+		pkDstVertex2->dwSpecular = pkSrcVertex2->dwFog;
+		pkDstVertex2->kTex1      = pkSrcVertex2->kTexTile;
+		pkDstVertex2->kTex2      = pkSrcVertex2->kTexAlpha;
+	}
+
 	pkVB->Unlock();
 
 	STATEMANAGER.SetStreamSource(0, pkVB, sizeof(SoftwareTransformPatch_SSplatVertex));
@@ -633,7 +701,7 @@ bool CMapOutdoor::__SoftwareTransformPatch_SetShadowStream(SoftwareTransformPatc
 	DWORD dwVBSize=sizeof(SoftwareTransformPatch_SSplatVertex)*CTerrainPatch::TERRAIN_VERTEX_COUNT;
 	SoftwareTransformPatch_SSplatVertex* akDstVertex;
 	if (FAILED(
-		pkVB->Lock(0, dwVBSize, (void**)&akDstVertex, 0)//D3DLOCK_DISCARD)
+		pkVB->Lock(0, dwVBSize, (void**)&akDstVertex, D3DLOCK_DISCARD)
 	)) return false;
 
 	SoftwareTransformPatch_STLVertex* pkSrcVertex;
@@ -650,9 +718,8 @@ bool CMapOutdoor::__SoftwareTransformPatch_SetShadowStream(SoftwareTransformPatc
 	}	
 	pkVB->Unlock();
 
-
-	//ms_lpd3dDevice->SetStreamSource(0, pkVB, sizeof(SoftwareTransformPatch_SSplatVertex));
-	return true;
+    STATEMANAGER.SetStreamSource(0, pkVB, sizeof(SoftwareTransformPatch_SSplatVertex));
+    return true;
 }
 
 void CMapOutdoor::__SoftwareTransformPatch_Initialize()
