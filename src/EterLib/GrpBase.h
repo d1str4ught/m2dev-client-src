@@ -3,7 +3,8 @@
 #include "Ray.h"
 #include <vector>
 
-// Forward declarations for DX11 types (defined in d3d11.h / dxgi.h via StdAfx.h)
+// Forward declarations for DX11 types (defined in d3d11.h / dxgi.h via
+// StdAfx.h)
 struct ID3D11Device;
 struct ID3D11DeviceContext;
 struct IDXGISwapChain;
@@ -301,7 +302,9 @@ protected:
   static LPDIRECT3DVERTEXBUFFER9 ms_alpd3dPDTVB[PDT_VERTEXBUFFER_NUM];
   static LPDIRECT3DINDEXBUFFER9 ms_alpd3dDefIB[DEFAULT_IB_NUM];
 
-  // ====== DX11 Device (Phase 1 migration) ======
+  // ====== DX11 Device (Phase 1 migration) — public for cross-class access
+  // ======
+public:
   static ID3D11Device *ms_pD3D11Device;
   static ID3D11DeviceContext *ms_pD3D11Context;
   static IDXGISwapChain *ms_pSwapChain;
