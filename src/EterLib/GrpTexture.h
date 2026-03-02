@@ -2,31 +2,35 @@
 
 #include "GrpBase.h"
 
-class CGraphicTexture : public CGraphicBase
-{
-	public:
-		virtual bool IsEmpty() const;
+// Forward declaration for DX11
+struct ID3D11ShaderResourceView;
 
-		int GetWidth() const;
-		int GetHeight() const;
+class CGraphicTexture : public CGraphicBase {
+public:
+  virtual bool IsEmpty() const;
 
-		void SetTextureStage(int stage) const;
-		LPDIRECT3DTEXTURE9 GetD3DTexture() const;
+  int GetWidth() const;
+  int GetHeight() const;
 
-		void DestroyDeviceObjects();
-		
-	protected:
-		CGraphicTexture();
-		virtual	~CGraphicTexture();
+  void SetTextureStage(int stage) const;
+  LPDIRECT3DTEXTURE9 GetD3DTexture() const;
+  ID3D11ShaderResourceView *GetDX11SRV() const { return m_pDX11SRV; }
 
-		void Destroy();
-		void Initialize();
+  void DestroyDeviceObjects();
 
-	protected:
-		bool m_bEmpty;
+protected:
+  CGraphicTexture();
+  virtual ~CGraphicTexture();
 
-		int m_width;
-		int m_height;
+  void Destroy();
+  void Initialize();
 
-		LPDIRECT3DTEXTURE9 m_lpd3dTexture;
+protected:
+  bool m_bEmpty;
+
+  int m_width;
+  int m_height;
+
+  LPDIRECT3DTEXTURE9 m_lpd3dTexture;
+  ID3D11ShaderResourceView *m_pDX11SRV; // DX11 shader resource view (Phase 3)
 };
