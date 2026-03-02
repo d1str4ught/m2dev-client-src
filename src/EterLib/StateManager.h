@@ -48,10 +48,9 @@ grow as big as it needs to be and then stop, so it shouldn't be reallocated.
 #include <stack>
 #include <vector>
 
-
+#include "DX11ShaderManager.h"
 #include "DX11StateCache.h"
 #include "EterBase/Singleton.h"
-
 
 #define CHECK_D3DAPI(a)                                                        \
   {                                                                            \
@@ -364,6 +363,10 @@ private:
 
   // DX11 state cache (Phase 2)
   CDX11StateCache m_DX11StateCache;
+
+  // DX11 shader manager (Phase 4/5 wiring)
+  CDX11ShaderManager m_DX11ShaderManager;
+  bool m_bDX11TransformDirty;
 
   std::vector<DWORD> m_RenderStateStack[STATEMANAGER_MAX_RENDERSTATES];
   std::vector<DWORD> m_SamplerStateStack[STATEMANAGER_MAX_STAGES]

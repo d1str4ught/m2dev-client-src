@@ -63,9 +63,13 @@ CStateManager::CStateManager(LPDIRECT3DDEVICE9EX lpDevice) : m_lpD3DDev(NULL) {
   SetDevice(lpDevice);
 
   // DX11: Initialize state cache with DX11 device (from CGraphicBase statics)
-  if (CGraphicBase::ms_pD3D11Device && CGraphicBase::ms_pD3D11Context)
+  if (CGraphicBase::ms_pD3D11Device && CGraphicBase::ms_pD3D11Context) {
     m_DX11StateCache.Initialize(CGraphicBase::ms_pD3D11Device,
                                 CGraphicBase::ms_pD3D11Context);
+    m_DX11ShaderManager.Initialize(CGraphicBase::ms_pD3D11Device,
+                                   CGraphicBase::ms_pD3D11Context);
+  }
+  m_bDX11TransformDirty = true;
 
 #ifdef _DEBUG
   m_iDrawCallCount = 0;
@@ -694,6 +698,10 @@ void CStateManager::SetTransform(D3DTRANSFORMSTATETYPE Type,
   else
     assert(D3DTS_VIEW == Type || D3DTS_PROJECTION == Type ||
            D3DTS_WORLD == Type);
+
+  // DX11: Mark transforms dirty for constant buffer update before next draw
+  if (Type == D3DTS_WORLD || Type == D3DTS_VIEW || Type == D3DTS_PROJECTION)
+    m_bDX11TransformDirty = true;
 }
 
 void CStateManager::GetTransform(D3DTRANSFORMSTATETYPE Type,
@@ -771,6 +779,16 @@ HRESULT CStateManager::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType,
 
   // DX11: Apply any dirty state objects before draw
   m_DX11StateCache.ApplyState();
+
+  // DX11: Update transforms and bind FFP shader if needed
+  if (m_bDX11TransformDirty) {
+    m_DX11ShaderManager.UpdateTransforms(
+        (const float *)&m_CurrentState.m_Matrices[D3DTS_WORLD],
+        (const float *)&m_CurrentState.m_Matrices[D3DTS_VIEW],
+        (const float *)&m_CurrentState.m_Matrices[D3DTS_PROJECTION]);
+    m_DX11ShaderManager.BindFFP_PDT();
+    m_bDX11TransformDirty = false;
+  }
 
   return (
       m_lpD3DDev->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount));
