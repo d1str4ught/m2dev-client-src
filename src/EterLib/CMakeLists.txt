@@ -6,6 +6,9 @@ target_link_libraries(EterLib
 	sodium
 	mio
 	freetype
+	d3d11
+	dxgi
+	d3dcompiler
 )
 
 GroupSourcesByFolder(EterLib)
