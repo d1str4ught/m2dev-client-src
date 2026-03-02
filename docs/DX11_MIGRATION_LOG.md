@@ -60,7 +60,49 @@ The visual quality target is a modern Metin2 client with:
 ---
 
 ## Phase 1: Device & Swap Chain
-*(To be filled as work progresses)*
+
+### Problem 6: DX11 and DX9 headers coexistence
+**Problem**: Including both `d3d9.h` and `d3d11.h` in the same translation unit — potential type conflicts?
+
+**Solution**: No conflicts — DX9 and DX11 headers use different type prefixes (`IDirect3D*` vs `ID3D11*`). Both can coexist safely. `StdAfx.h` includes both during the transition period.
+
+---
+
+### Problem 7: IDE clang lint errors about missing d3dx9.h
+**Problem**: Clang IDE analyzer reports `d3dx9.h` file not found, `D3DXMATRIX` unknown type, etc. across 40+ errors.
+
+**Solution**: False positives — clang doesn't have the `extern/include` path in its search paths. MSVC build works perfectly through the CMake configuration. These are **IDE-only errors**, not build errors.
+
+---
+
+### Problem 8: Static member initialization for DX11 types
+**Problem**: New DX11 static members (`ID3D11Device*`, `IDXGISwapChain*`, etc.) need proper initialization alongside existing DX9 members.
+
+**Solution**: All DX11 pointers initialized to `nullptr`, feature level to `D3D_FEATURE_LEVEL_11_0` in `GrpBase.cpp`. Build verified — `EterLib.lib` (27.3 MB) compiles successfully.
+
+---
+
+### Problem 9: GrpBase.h file lock prevents forward declarations
+**Problem**: `GrpBase.h` is locked by VS Code, preventing forward declarations for DX11 COM types (`ID3D11Device`, etc.) from being written to disk. The edit tool reports success but the changes don't persist.
+
+**Solution (pending)**: Close VS Code or use a different mechanism to write the file. Once the forward declarations are saved and the file includes:
+```cpp
+struct ID3D11Device;
+struct ID3D11DeviceContext;
+struct IDXGISwapChain;
+struct ID3D11RenderTargetView;
+struct ID3D11DepthStencilView;
+struct ID3D11Texture2D;
+enum D3D_FEATURE_LEVEL : int;
+```
+...the build should succeed.
+
+---
+
+### Problem 10: Ray.h missing `<cassert>` include (latent bug)
+**Problem**: `Ray.h` uses `assert()` without including `<cassert>`, relying on PCH ordering. Exposed when `GrpBase.h` changes altered PCH compilation order.
+
+**Solution**: Added `#include <cassert>` to `Ray.h`.
 
 ## Phase 2: State Manager
 *(To be filled)*
