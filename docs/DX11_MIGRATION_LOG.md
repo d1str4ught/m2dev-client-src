@@ -85,17 +85,9 @@ The visual quality target is a modern Metin2 client with:
 ### Problem 9: GrpBase.h file lock prevents forward declarations
 **Problem**: `GrpBase.h` is locked by VS Code, preventing forward declarations for DX11 COM types (`ID3D11Device`, etc.) from being written to disk. The edit tool reports success but the changes don't persist.
 
-**Solution (pending)**: Close VS Code or use a different mechanism to write the file. Once the forward declarations are saved and the file includes:
-```cpp
-struct ID3D11Device;
-struct ID3D11DeviceContext;
-struct IDXGISwapChain;
-struct ID3D11RenderTargetView;
-struct ID3D11DepthStencilView;
-struct ID3D11Texture2D;
-enum D3D_FEATURE_LEVEL : int;
-```
-...the build should succeed.
+**Solution**: Killed stale MSBuild processes that were locking the file, then used PowerShell `[System.IO.File]::WriteAllText()` to write the forward declarations directly. Build succeeded after fix.
+
+Also added `<string>` include to `GrpDevice.h` (another latent dependency exposed by the change).
 
 ---
 
