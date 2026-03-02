@@ -4,6 +4,7 @@
 #include "StateManager.h"
 
 #include <map>
+#include <string>
 
 class CGraphicDevice : public CGraphicBase {
 public:

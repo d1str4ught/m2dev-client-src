@@ -3,6 +3,15 @@
 #include "Ray.h"
 #include <vector>
 
+// Forward declarations for DX11 types (defined in d3d11.h / dxgi.h via StdAfx.h)
+struct ID3D11Device;
+struct ID3D11DeviceContext;
+struct IDXGISwapChain;
+struct ID3D11RenderTargetView;
+struct ID3D11DepthStencilView;
+struct ID3D11Texture2D;
+enum D3D_FEATURE_LEVEL : int;
+
 void PixelPositionToD3DXVECTOR3(const D3DXVECTOR3 &c_rkPPosSrc,
                                 D3DXVECTOR3 *pv3Dst);
 void D3DXVECTOR3ToPixelPosition(const D3DXVECTOR3 &c_rv3Src,
