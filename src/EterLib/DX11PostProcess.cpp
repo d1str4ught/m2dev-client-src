@@ -108,12 +108,6 @@ float4 PS_Composite(VS_OUTPUT input) : SV_TARGET
     float3 warmTint = float3(1.02f, 0.99f, 0.96f);
     result *= warmTint;
 
-    // Very subtle vignette (barely visible)
-    float2 uv = input.TexCoord;
-    float vig = uv.x * uv.y * (1.0f - uv.x) * (1.0f - uv.y);
-    vig = saturate(pow(vig * 16.0f, 0.35f));
-    result *= vig;
-
     return float4(saturate(result), 1.0f);
 }
 )";
