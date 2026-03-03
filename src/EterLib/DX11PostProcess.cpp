@@ -83,42 +83,19 @@ float4 PS_BloomBlur(VS_OUTPUT input) : SV_TARGET
     return float4(result * 0.5f, 1.0f);
 }
 
-// ---- ACES Filmic Tonemapping ----
-float3 ACESFilm(float3 x)
-{
-    float a = 2.51f; float b = 0.03f;
-    float c = 2.43f; float d = 0.59f; float e = 0.14f;
-    return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
-}
-
-// ---- Composite: ACES tonemap + bloom + vignette + color grading ----
+// ---- Composite: standard bloom + gamma correct ----
 float4 PS_Composite(VS_OUTPUT input) : SV_TARGET
 {
     float3 scene = texScene.Sample(samLinear, input.TexCoord).rgb;
     float3 bloom = texBloom.Sample(samLinear, input.TexCoord).rgb;
 
-    // Additive bloom
+    // Simple additive bloom (standard MMORPG approach)
     float3 result = scene + bloom * fBloomIntensity;
 
-    // ACES filmic tonemapping
-    result = ACESFilm(result);
+    // Clamp to prevent oversaturation
+    result = saturate(result);
 
-    // Contrast boost (smoothstep S-curve)
-    result = result * result * (3.0f - 2.0f * result);
-
-    // Color grading: warm shadows, cool highlights
-    float lum = dot(result, float3(0.2126f, 0.7152f, 0.0722f));
-    float3 warmTint = float3(1.03f, 0.98f, 0.93f);
-    float3 coolTint = float3(0.96f, 0.99f, 1.04f);
-    result *= lerp(warmTint, coolTint, saturate(lum * 1.5f));
-
-    // Vignette
-    float2 uv = input.TexCoord;
-    float vig = uv.x * uv.y * (1.0f - uv.x) * (1.0f - uv.y);
-    vig = saturate(pow(vig * 16.0f, 0.25f));
-    result *= vig;
-
-    return float4(saturate(result), 1.0f);
+    return float4(result, 1.0f);
 }
 )";
 
@@ -165,7 +142,7 @@ static bool CompileShaderFromString(const char *szSource, const char *szEntry,
 CDX11PostProcess::CDX11PostProcess()
     : m_pDevice(nullptr), m_pContext(nullptr), m_pSwapChain(nullptr),
       m_bInitialized(false), m_iWidth(0), m_iHeight(0), m_bBloomEnabled(true),
-      m_fBloomIntensity(0.5f), m_fBloomThreshold(0.7f),
+      m_fBloomIntensity(0.4f), m_fBloomThreshold(0.8f),
       m_pFullscreenVS(nullptr), m_pBloomExtractPS(nullptr),
       m_pBloomBlurPS(nullptr), m_pCompositePS(nullptr), m_pBloomRT_Tex(nullptr),
       m_pBloomRT_RTV(nullptr), m_pBloomRT_SRV(nullptr),
