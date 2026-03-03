@@ -5,7 +5,6 @@
 #include "StateManager.h"
 #include "StdAfx.h"
 
-
 void PixelPositionToD3DXVECTOR3(const D3DXVECTOR3 &c_rkPPosSrc,
                                 D3DXVECTOR3 *pv3Dst) {
   pv3Dst->x = +c_rkPPosSrc.x;
@@ -104,6 +103,11 @@ ID3D11RenderTargetView *CGraphicBase::ms_pRenderTargetView = nullptr;
 ID3D11DepthStencilView *CGraphicBase::ms_pDepthStencilView = nullptr;
 ID3D11Texture2D *CGraphicBase::ms_pDepthStencilBuffer = nullptr;
 D3D_FEATURE_LEVEL CGraphicBase::ms_featureLevel = D3D_FEATURE_LEVEL_11_0;
+
+// DX9→DX11 frame bridge
+ID3D11Texture2D *CGraphicBase::ms_pSharedTexture = nullptr;
+ID3D11ShaderResourceView *CGraphicBase::ms_pSharedSRV = nullptr;
+CDX11PostProcess *CGraphicBase::ms_pPostProcess = nullptr;
 
 bool CGraphicBase::IsLowTextureMemory() { return ms_isLowTextureMemory; }
 
@@ -293,7 +297,7 @@ void CGraphicBase::SetPerspective(float fov, float aspect, float nearz,
 
   // if (ms_d3dPresentParameter.BackBufferWidth>0 &&
   // ms_d3dPresentParameter.BackBufferHeight>0) 	ms_fAspect =
-  //float(ms_d3dPresentParameter.BackBufferWidth)/float(ms_d3dPresentParameter.BackBufferHeight);
+  // float(ms_d3dPresentParameter.BackBufferWidth)/float(ms_d3dPresentParameter.BackBufferHeight);
   // else
   ms_fAspect = aspect;
 

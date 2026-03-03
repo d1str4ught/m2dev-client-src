@@ -1,8 +1,8 @@
 #include "GrpScreen.h"
 #include "Camera.h"
+#include "DX11PostProcess.h"
 #include "StateManager.h"
 #include "StdAfx.h"
-
 
 #include <comdef.h>
 #include <utf8.h>
@@ -724,9 +724,45 @@ void CScreen::Show(HWND hWnd) {
       RestoreDevice();
   }
 
-  // DX11: Present swap chain
-  if (ms_pSwapChain)
+  // DX11: Frame bridge — copy DX9 render to DX11 texture, apply post-processing
+  if (ms_pPostProcess && ms_pPostProcess->IsInitialized() &&
+      ms_pSharedTexture && ms_pSharedSRV) {
+    // Copy DX9 back buffer to a system memory surface, then upload to DX11
+    IDirect3DSurface9 *pBackBuffer = nullptr;
+    if (SUCCEEDED(ms_lpd3dDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO,
+                                                &pBackBuffer))) {
+      // Get back buffer dimensions
+      D3DSURFACE_DESC bbDesc;
+      pBackBuffer->GetDesc(&bbDesc);
+
+      // Create an offscreen plain surface in system memory for CPU read
+      IDirect3DSurface9 *pSysSurface = nullptr;
+      if (SUCCEEDED(ms_lpd3dDevice->CreateOffscreenPlainSurface(
+              bbDesc.Width, bbDesc.Height, bbDesc.Format, D3DPOOL_SYSTEMMEM,
+              &pSysSurface, nullptr))) {
+        // Copy GPU back buffer → system memory
+        if (SUCCEEDED(ms_lpd3dDevice->GetRenderTargetData(pBackBuffer,
+                                                          pSysSurface))) {
+          D3DLOCKED_RECT lockedRect;
+          if (SUCCEEDED(pSysSurface->LockRect(&lockedRect, nullptr,
+                                              D3DLOCK_READONLY))) {
+            // Upload to DX11 shared texture
+            ms_pD3D11Context->UpdateSubresource(ms_pSharedTexture, 0, nullptr,
+                                                lockedRect.pBits,
+                                                lockedRect.Pitch, 0);
+            pSysSurface->UnlockRect();
+          }
+        }
+        pSysSurface->Release();
+      }
+      pBackBuffer->Release();
+    }
+
+    // Apply post-processing (bloom + tonemapping) and present via DX11
+    ms_pPostProcess->ApplyAndPresent(ms_pSharedSRV);
+  } else if (ms_pSwapChain) {
     ms_pSwapChain->Present(0, 0);
+  }
 }
 
 void CScreen::Show(RECT *pSrcRect) {

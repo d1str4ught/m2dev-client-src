@@ -1,4 +1,5 @@
 #include "GrpDevice.h"
+#include "DX11PostProcess.h"
 #include "EterBase/Debug.h"
 #include "EterBase/Stl.h"
 #include "StdAfx.h"
@@ -639,6 +640,30 @@ bool CGraphicDevice::__CreateDX11Device(HWND hWnd, int iWidth, int iHeight,
   viewport.MaxDepth = 1.0f;
   ms_pD3D11Context->RSSetViewports(1, &viewport);
 
+  // Create shared texture for DX9->DX11 frame bridge
+  {
+    D3D11_TEXTURE2D_DESC sharedDesc = {};
+    sharedDesc.Width = iWidth;
+    sharedDesc.Height = iHeight;
+    sharedDesc.MipLevels = 1;
+    sharedDesc.ArraySize = 1;
+    sharedDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM; // matches DX9 back buffer
+    sharedDesc.SampleDesc.Count = 1;
+    sharedDesc.Usage = D3D11_USAGE_DEFAULT;
+    sharedDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+    hr = ms_pD3D11Device->CreateTexture2D(&sharedDesc, nullptr,
+                                          &ms_pSharedTexture);
+    if (SUCCEEDED(hr))
+      ms_pD3D11Device->CreateShaderResourceView(ms_pSharedTexture, nullptr,
+                                                &ms_pSharedSRV);
+  }
+
+  // Initialize post-processing pipeline
+  ms_pPostProcess = new CDX11PostProcess();
+  ms_pPostProcess->Initialize(ms_pD3D11Device, ms_pD3D11Context, ms_pSwapChain,
+                              iWidth, iHeight);
+
   return true;
 }
 
@@ -676,6 +701,20 @@ bool CGraphicDevice::__CreateDX11DepthStencil(int iWidth, int iHeight) {
 }
 
 void CGraphicDevice::__DestroyDX11Device() {
+  // Clean up frame bridge
+  if (ms_pPostProcess) {
+    ms_pPostProcess->Shutdown();
+    delete ms_pPostProcess;
+    ms_pPostProcess = nullptr;
+  }
+  if (ms_pSharedSRV) {
+    ms_pSharedSRV->Release();
+    ms_pSharedSRV = nullptr;
+  }
+  if (ms_pSharedTexture) {
+    ms_pSharedTexture->Release();
+    ms_pSharedTexture = nullptr;
+  }
   if (ms_pDepthStencilView) {
     ms_pDepthStencilView->Release();
     ms_pDepthStencilView = nullptr;

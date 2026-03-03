@@ -11,7 +11,9 @@ struct IDXGISwapChain;
 struct ID3D11RenderTargetView;
 struct ID3D11DepthStencilView;
 struct ID3D11Texture2D;
+struct ID3D11ShaderResourceView;
 enum D3D_FEATURE_LEVEL : int;
+class CDX11PostProcess;
 
 void PixelPositionToD3DXVECTOR3(const D3DXVECTOR3 &c_rkPPosSrc,
                                 D3DXVECTOR3 *pv3Dst);
@@ -312,4 +314,9 @@ public:
   static ID3D11DepthStencilView *ms_pDepthStencilView;
   static ID3D11Texture2D *ms_pDepthStencilBuffer;
   static D3D_FEATURE_LEVEL ms_featureLevel;
+
+  // DX9→DX11 frame bridge (shared surface)
+  static ID3D11Texture2D *ms_pSharedTexture;
+  static ID3D11ShaderResourceView *ms_pSharedSRV;
+  static CDX11PostProcess *ms_pPostProcess;
 };
