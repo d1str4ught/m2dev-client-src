@@ -701,52 +701,27 @@ extern RECT g_rcBrowser;
 void CScreen::Show(HWND hWnd) {
   assert(ms_lpd3dDevice != NULL);
 
-  if (g_isBrowserMode) {
-    RECT rcTop = {static_cast<long>(0), static_cast<long>(0),
-                  static_cast<long>(ms_d3dPresentParameter.BackBufferWidth),
-                  static_cast<long>(g_rcBrowser.top)};
-    RECT rcBottom = {
-        0, g_rcBrowser.bottom,
-        static_cast<long>(ms_d3dPresentParameter.BackBufferWidth),
-        static_cast<long>(ms_d3dPresentParameter.BackBufferHeight)};
-    RECT rcLeft = {0, g_rcBrowser.top, g_rcBrowser.left, g_rcBrowser.bottom};
-    RECT rcRight = {g_rcBrowser.right, g_rcBrowser.top,
-                    static_cast<long>(ms_d3dPresentParameter.BackBufferWidth),
-                    g_rcBrowser.bottom};
+  bool bDX11Active = ms_pPostProcess && ms_pPostProcess->IsInitialized() &&
+                     ms_pSharedTexture && ms_pSharedSRV;
 
-    ms_lpd3dDevice->Present(&rcTop, &rcTop, hWnd, NULL);
-    ms_lpd3dDevice->Present(&rcBottom, &rcBottom, hWnd, NULL);
-    ms_lpd3dDevice->Present(&rcLeft, &rcLeft, hWnd, NULL);
-    ms_lpd3dDevice->Present(&rcRight, &rcRight, hWnd, NULL);
-  } else {
-    HRESULT hr = ms_lpd3dDevice->Present(NULL, NULL, hWnd, NULL);
-    if (D3DERR_DEVICELOST == hr)
-      RestoreDevice();
-  }
-
-  // DX11: Frame bridge — copy DX9 render to DX11 texture, apply post-processing
-  if (ms_pPostProcess && ms_pPostProcess->IsInitialized() &&
-      ms_pSharedTexture && ms_pSharedSRV) {
-    // Copy DX9 back buffer to a system memory surface, then upload to DX11
+  // DX11: Copy DX9 back buffer BEFORE present (back buffer is undefined after
+  // present)
+  if (bDX11Active) {
     IDirect3DSurface9 *pBackBuffer = nullptr;
     if (SUCCEEDED(ms_lpd3dDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO,
                                                 &pBackBuffer))) {
-      // Get back buffer dimensions
       D3DSURFACE_DESC bbDesc;
       pBackBuffer->GetDesc(&bbDesc);
 
-      // Create an offscreen plain surface in system memory for CPU read
       IDirect3DSurface9 *pSysSurface = nullptr;
       if (SUCCEEDED(ms_lpd3dDevice->CreateOffscreenPlainSurface(
               bbDesc.Width, bbDesc.Height, bbDesc.Format, D3DPOOL_SYSTEMMEM,
               &pSysSurface, nullptr))) {
-        // Copy GPU back buffer → system memory
         if (SUCCEEDED(ms_lpd3dDevice->GetRenderTargetData(pBackBuffer,
                                                           pSysSurface))) {
           D3DLOCKED_RECT lockedRect;
           if (SUCCEEDED(pSysSurface->LockRect(&lockedRect, nullptr,
                                               D3DLOCK_READONLY))) {
-            // Upload to DX11 shared texture
             ms_pD3D11Context->UpdateSubresource(ms_pSharedTexture, 0, nullptr,
                                                 lockedRect.pBits,
                                                 lockedRect.Pitch, 0);
@@ -758,10 +733,35 @@ void CScreen::Show(HWND hWnd) {
       pBackBuffer->Release();
     }
 
-    // Apply post-processing (bloom + tonemapping) and present via DX11
+    // Present via DX11 post-processing only (no DX9 present — avoids flicker)
     ms_pPostProcess->ApplyAndPresent(ms_pSharedSRV);
-  } else if (ms_pSwapChain) {
-    ms_pSwapChain->Present(0, 0);
+  } else {
+    // Fallback: DX9-only present (no DX11 post-processing available)
+    if (g_isBrowserMode) {
+      RECT rcTop = {static_cast<long>(0), static_cast<long>(0),
+                    static_cast<long>(ms_d3dPresentParameter.BackBufferWidth),
+                    static_cast<long>(g_rcBrowser.top)};
+      RECT rcBottom = {
+          0, g_rcBrowser.bottom,
+          static_cast<long>(ms_d3dPresentParameter.BackBufferWidth),
+          static_cast<long>(ms_d3dPresentParameter.BackBufferHeight)};
+      RECT rcLeft = {0, g_rcBrowser.top, g_rcBrowser.left, g_rcBrowser.bottom};
+      RECT rcRight = {g_rcBrowser.right, g_rcBrowser.top,
+                      static_cast<long>(ms_d3dPresentParameter.BackBufferWidth),
+                      g_rcBrowser.bottom};
+
+      ms_lpd3dDevice->Present(&rcTop, &rcTop, hWnd, NULL);
+      ms_lpd3dDevice->Present(&rcBottom, &rcBottom, hWnd, NULL);
+      ms_lpd3dDevice->Present(&rcLeft, &rcLeft, hWnd, NULL);
+      ms_lpd3dDevice->Present(&rcRight, &rcRight, hWnd, NULL);
+    } else {
+      HRESULT hr = ms_lpd3dDevice->Present(NULL, NULL, hWnd, NULL);
+      if (D3DERR_DEVICELOST == hr)
+        RestoreDevice();
+    }
+
+    if (ms_pSwapChain)
+      ms_pSwapChain->Present(0, 0);
   }
 }
 
