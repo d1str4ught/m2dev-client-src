@@ -101,6 +101,12 @@ bool CGraphicVertexBuffer::Copy(int bufSize, const void *srcVertices) {
   memcpy(dstVertices, srcVertices, bufSize);
 
   Unlock();
+
+  // DX11: Sync data to DX11 buffer
+  if (ms_pD3D11Context && m_pDX11Buffer)
+    ms_pD3D11Context->UpdateSubresource(m_pDX11Buffer, 0, nullptr, srcVertices,
+                                        0, 0);
+
   return true;
 }
 

@@ -75,6 +75,11 @@ bool CGraphicIndexBuffer::Copy(int bufSize, const void *srcIndices) {
 
   m_lpd3dIdxBuf->Unlock();
 
+  // DX11: Sync data to DX11 index buffer
+  if (ms_pD3D11Context && m_pDX11Buffer)
+    ms_pD3D11Context->UpdateSubresource(m_pDX11Buffer, 0, nullptr, srcIndices,
+                                        0, 0);
+
   return true;
 }
 
@@ -96,6 +101,19 @@ bool CGraphicIndexBuffer::Create(int faceCount, TFace *faces) {
   }
 
   m_lpd3dIdxBuf->Unlock();
+
+  // DX11: Sync face data to DX11 index buffer
+  if (ms_pD3D11Context && m_pDX11Buffer) {
+    // Re-lock briefly to get data pointer for DX11 sync
+    BYTE *pData;
+    if (SUCCEEDED(
+            m_lpd3dIdxBuf->Lock(0, 0, (void **)&pData, D3DLOCK_READONLY))) {
+      ms_pD3D11Context->UpdateSubresource(m_pDX11Buffer, 0, nullptr, pData, 0,
+                                          0);
+      m_lpd3dIdxBuf->Unlock();
+    }
+  }
+
   return true;
 }
 
