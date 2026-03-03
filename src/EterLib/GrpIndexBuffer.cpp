@@ -3,7 +3,6 @@
 #include "StateManager.h"
 #include "StdAfx.h"
 
-
 #include <d3d11.h>
 
 LPDIRECT3DINDEXBUFFER9 CGraphicIndexBuffer::GetD3DIndexBuffer() const {
@@ -14,6 +13,13 @@ LPDIRECT3DINDEXBUFFER9 CGraphicIndexBuffer::GetD3DIndexBuffer() const {
 void CGraphicIndexBuffer::SetIndices(int startIndex) const {
   assert(ms_lpd3dDevice != NULL);
   STATEMANAGER.SetIndices(m_lpd3dIdxBuf, startIndex);
+
+  // DX11: Bind index buffer
+  if (ms_pD3D11Context && m_pDX11Buffer) {
+    DXGI_FORMAT dxgiFmt = (m_d3dFmt == D3DFMT_INDEX32) ? DXGI_FORMAT_R32_UINT
+                                                       : DXGI_FORMAT_R16_UINT;
+    ms_pD3D11Context->IASetIndexBuffer(m_pDX11Buffer, dxgiFmt, 0);
+  }
 }
 
 bool CGraphicIndexBuffer::Lock(void **pretIndices) const {

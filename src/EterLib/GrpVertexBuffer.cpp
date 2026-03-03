@@ -3,7 +3,6 @@
 #include "StateManager.h"
 #include "StdAfx.h"
 
-
 #include <d3d11.h>
 
 int CGraphicVertexBuffer::GetVertexStride() const {
@@ -18,6 +17,14 @@ int CGraphicVertexBuffer::GetVertexCount() const { return m_vtxCount; }
 void CGraphicVertexBuffer::SetStream(int stride, int layer) const {
   assert(ms_lpd3dDevice != NULL);
   STATEMANAGER.SetStreamSource(layer, m_lpd3dVB, stride);
+
+  // DX11: Bind vertex buffer to matching slot
+  if (ms_pD3D11Context && m_pDX11Buffer) {
+    UINT dx11Stride = (UINT)stride;
+    UINT dx11Offset = 0;
+    ms_pD3D11Context->IASetVertexBuffers((UINT)layer, 1, &m_pDX11Buffer,
+                                         &dx11Stride, &dx11Offset);
+  }
 }
 
 bool CGraphicVertexBuffer::LockRange(unsigned count,
