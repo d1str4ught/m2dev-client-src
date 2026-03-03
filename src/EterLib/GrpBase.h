@@ -319,4 +319,11 @@ public:
   static ID3D11Texture2D *ms_pSharedTexture;
   static ID3D11ShaderResourceView *ms_pSharedSRV;
   static CDX11PostProcess *ms_pPostProcess;
+
+  // DX11 post-processing toggle (runtime)
+  static bool ms_bDX11PostProcessEnabled;
+  static void SetDX11PostProcessEnabled(bool b) {
+    ms_bDX11PostProcessEnabled = b;
+  }
+  static bool IsDX11PostProcessEnabled() { return ms_bDX11PostProcessEnabled; }
 };

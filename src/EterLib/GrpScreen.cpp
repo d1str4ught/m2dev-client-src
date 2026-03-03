@@ -701,8 +701,9 @@ extern RECT g_rcBrowser;
 void CScreen::Show(HWND hWnd) {
   assert(ms_lpd3dDevice != NULL);
 
-  bool bDX11Active = ms_pPostProcess && ms_pPostProcess->IsInitialized() &&
-                     ms_pSharedTexture && ms_pSharedSRV;
+  bool bDX11Active = ms_bDX11PostProcessEnabled && ms_pPostProcess &&
+                     ms_pPostProcess->IsInitialized() && ms_pSharedTexture &&
+                     ms_pSharedSRV;
 
   // Debug: Log DX11 post-process status on first frame
   static bool s_bLoggedOnce = false;
