@@ -638,6 +638,9 @@ void CStateManager::SetFVF(DWORD dwShader) {
   //	return;
   m_lpD3DDev->SetFVF(dwShader);
   m_CurrentState.m_dwFVF = dwShader;
+
+  // DX11: Auto-select FFP shader variant matching this vertex format
+  m_DX11ShaderManager.BindForFVF(dwShader);
 }
 void CStateManager::GetFVF(DWORD *pdwShader) {
   *pdwShader = m_CurrentState.m_dwFVF;
@@ -780,13 +783,12 @@ HRESULT CStateManager::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType,
   // DX11: Apply any dirty state objects before draw
   m_DX11StateCache.ApplyState();
 
-  // DX11: Update transforms and bind FFP shader if needed
+  // DX11: Update transforms (shader variant already selected by SetFVF)
   if (m_bDX11TransformDirty) {
     m_DX11ShaderManager.UpdateTransforms(
         (const float *)&m_CurrentState.m_Matrices[D3DTS_WORLD],
         (const float *)&m_CurrentState.m_Matrices[D3DTS_VIEW],
         (const float *)&m_CurrentState.m_Matrices[D3DTS_PROJECTION]);
-    m_DX11ShaderManager.BindFFP_PDT();
     m_bDX11TransformDirty = false;
   }
 
