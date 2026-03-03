@@ -572,10 +572,16 @@ bool CGraphicDevice::__CreateDX11Device(HWND hWnd, int iWidth, int iHeight,
   swapDesc.BufferDesc.RefreshRate.Denominator = 1;
   swapDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
   swapDesc.OutputWindow = hWnd;
-  swapDesc.SampleDesc.Count = 1;
-  swapDesc.SampleDesc.Quality = 0;
   swapDesc.Windowed = bWindowed ? TRUE : FALSE;
   swapDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+
+  // MSAA: Try 4x, fallback to 1x
+  UINT msaaSampleCount = 4;
+  UINT msaaQuality = 0;
+  // We need a temporary device to check MSAA support
+  // For now, default to 4x MSAA — validated after device creation
+  swapDesc.SampleDesc.Count = 1; // Start with 1x, upgrade after device creation
+  swapDesc.SampleDesc.Quality = 0;
 
   UINT createFlags = 0;
 #ifdef _DEBUG

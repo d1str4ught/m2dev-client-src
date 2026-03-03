@@ -783,6 +783,11 @@ void CStateManager::SetIndices(LPDIRECT3DINDEXBUFFER9 pIndexData,
   m_CurrentState.m_IndexData = kIndexData;
 }
 
+// Forward declarations for DX11 topology/primcount helpers (defined below)
+static D3D11_PRIMITIVE_TOPOLOGY MapTopology(D3DPRIMITIVETYPE pt);
+static UINT PrimCountToVertexCount(D3DPRIMITIVETYPE pt, UINT primCount);
+static UINT PrimCountToIndexCount(D3DPRIMITIVETYPE pt, UINT primCount);
+
 HRESULT CStateManager::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType,
                                      UINT StartVertex, UINT PrimitiveCount) {
 #ifdef _DEBUG
@@ -799,6 +804,14 @@ HRESULT CStateManager::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType,
         (const float *)&m_CurrentState.m_Matrices[D3DTS_VIEW],
         (const float *)&m_CurrentState.m_Matrices[D3DTS_PROJECTION]);
     m_bDX11TransformDirty = false;
+  }
+
+  // DX11: Emit draw call alongside DX9
+  if (CGraphicBase::ms_pD3D11Context) {
+    CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
+        MapTopology(PrimitiveType));
+    UINT vertexCount = PrimCountToVertexCount(PrimitiveType, PrimitiveCount);
+    CGraphicBase::ms_pD3D11Context->Draw(vertexCount, StartVertex);
   }
 
   return (
@@ -883,8 +896,25 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
   ++m_iDrawCallCount;
 #endif
 
-  // DX11: Apply any dirty state objects before draw
+  // DX11: Apply state + emit indexed draw
   m_DX11StateCache.ApplyState();
+
+  // DX11: Update transforms if dirty
+  if (m_bDX11TransformDirty) {
+    m_DX11ShaderManager.UpdateTransforms(
+        (const float *)&m_CurrentState.m_Matrices[D3DTS_WORLD],
+        (const float *)&m_CurrentState.m_Matrices[D3DTS_VIEW],
+        (const float *)&m_CurrentState.m_Matrices[D3DTS_PROJECTION]);
+    m_bDX11TransformDirty = false;
+  }
+
+  // DX11: Emit indexed draw
+  if (CGraphicBase::ms_pD3D11Context) {
+    CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
+        MapTopology(PrimitiveType));
+    UINT indexCount = PrimCountToIndexCount(PrimitiveType, primCount);
+    CGraphicBase::ms_pD3D11Context->DrawIndexed(indexCount, startIndex, 0);
+  }
 
   return (m_lpD3DDev->DrawIndexedPrimitive(PrimitiveType, 0, minIndex,
                                            NumVertices, startIndex, primCount));
@@ -897,6 +927,25 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
 #ifdef _DEBUG
   ++m_iDrawCallCount;
 #endif
+
+  // DX11: Apply state + emit indexed draw with base vertex
+  m_DX11StateCache.ApplyState();
+
+  if (m_bDX11TransformDirty) {
+    m_DX11ShaderManager.UpdateTransforms(
+        (const float *)&m_CurrentState.m_Matrices[D3DTS_WORLD],
+        (const float *)&m_CurrentState.m_Matrices[D3DTS_VIEW],
+        (const float *)&m_CurrentState.m_Matrices[D3DTS_PROJECTION]);
+    m_bDX11TransformDirty = false;
+  }
+
+  if (CGraphicBase::ms_pD3D11Context) {
+    CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
+        MapTopology(PrimitiveType));
+    UINT indexCount = PrimCountToIndexCount(PrimitiveType, primCount);
+    CGraphicBase::ms_pD3D11Context->DrawIndexed(indexCount, startIndex,
+                                                baseVertexIndex);
+  }
 
   return (m_lpD3DDev->DrawIndexedPrimitive(PrimitiveType, baseVertexIndex,
                                            minIndex, NumVertices, startIndex,
