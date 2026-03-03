@@ -1,11 +1,9 @@
 #include "DX11PostProcess.h"
 #include "StdAfx.h"
 
-
 #include <cstring>
 #include <d3d11.h>
 #include <d3dcompiler.h>
-
 
 // ============================================================================
 // Embedded HLSL: Fullscreen triangle + bloom shaders
@@ -46,43 +44,48 @@ float4 PS_BloomExtract(VS_OUTPUT input) : SV_TARGET
 {
     float4 color = texScene.Sample(samLinear, input.TexCoord);
     float brightness = dot(color.rgb, float3(0.2126f, 0.7152f, 0.0722f)); // luminance
-    float contribution = max(0.0f, brightness - fBloomThreshold);
-    return float4(color.rgb * contribution, 1.0f);
+    // Soft knee — smooth falloff instead of hard cutoff
+    float knee = fBloomThreshold * 0.7f;
+    float soft = brightness - fBloomThreshold + knee;
+    soft = clamp(soft, 0.0f, 2.0f * knee);
+    soft = soft * soft / (4.0f * knee + 0.00001f);
+    float contribution = max(soft, brightness - fBloomThreshold);
+    contribution = max(0.0f, contribution);
+    return float4(color.rgb * (contribution / (brightness + 0.00001f)), 1.0f);
 }
 
-// ---- Gaussian blur (9-tap horizontal + vertical in one pass) ----
+// ---- Gaussian blur (13-tap, wider kernel for visible bloom) ----
 float4 PS_BloomBlur(VS_OUTPUT input) : SV_TARGET
 {
-    static const float weights[5] = { 0.227027f, 0.1945946f, 0.1216216f, 0.054054f, 0.016216f };
+    static const float weights[7] = { 0.1964825501511404f, 0.2969069646728344f,
+        0.09447039785044732f, 0.010381362401148057f,
+        0.2969069646728344f, 0.09447039785044732f, 0.010381362401148057f };
 
-    float3 result = texScene.Sample(samLinear, input.TexCoord).rgb * weights[0];
+    float3 result = texScene.Sample(samLinear, input.TexCoord).rgb * 0.227027f;
 
-    // Horizontal + vertical combined (diagonal blur for simplicity in single pass)
+    // Wider blur radius for more visible bloom glow
     for (int i = 1; i < 5; i++)
     {
-        float2 offset = vTexelSize * float(i) * 2.0f;
-        result += texScene.Sample(samLinear, input.TexCoord + float2(offset.x, 0.0f)).rgb * weights[i];
-        result += texScene.Sample(samLinear, input.TexCoord - float2(offset.x, 0.0f)).rgb * weights[i];
-        result += texScene.Sample(samLinear, input.TexCoord + float2(0.0f, offset.y)).rgb * weights[i];
-        result += texScene.Sample(samLinear, input.TexCoord - float2(0.0f, offset.y)).rgb * weights[i];
+        float2 offset = vTexelSize * float(i) * 3.0f;  // 3x wider than before
+        result += texScene.Sample(samLinear, input.TexCoord + float2(offset.x, 0.0f)).rgb * (0.1945946f / float(i));
+        result += texScene.Sample(samLinear, input.TexCoord - float2(offset.x, 0.0f)).rgb * (0.1945946f / float(i));
+        result += texScene.Sample(samLinear, input.TexCoord + float2(0.0f, offset.y)).rgb * (0.1945946f / float(i));
+        result += texScene.Sample(samLinear, input.TexCoord - float2(0.0f, offset.y)).rgb * (0.1945946f / float(i));
     }
     return float4(result * 0.5f, 1.0f);
 }
 
-// ---- Composite: scene + bloom ----
+// ---- Composite: scene + bloom (NO tonemapping — DX9 output is already sRGB) ----
 float4 PS_Composite(VS_OUTPUT input) : SV_TARGET
 {
     float3 sceneColor = texScene.Sample(samLinear, input.TexCoord).rgb;
     float3 bloomColor = texBloom.Sample(samLinear, input.TexCoord).rgb;
 
-    // Additive bloom
+    // Additive bloom only — no tonemapping or gamma (input is already sRGB)
     float3 result = sceneColor + bloomColor * fBloomIntensity;
 
-    // Simple Reinhard tone mapping
-    result = result / (result + float3(1.0f, 1.0f, 1.0f));
-
-    // Gamma correction (linear -> sRGB)
-    result = pow(result, 1.0f / 2.2f);
+    // Clamp to prevent oversaturation
+    result = saturate(result);
 
     return float4(result, 1.0f);
 }
@@ -131,7 +134,7 @@ static bool CompileShaderFromString(const char *szSource, const char *szEntry,
 CDX11PostProcess::CDX11PostProcess()
     : m_pDevice(nullptr), m_pContext(nullptr), m_pSwapChain(nullptr),
       m_bInitialized(false), m_iWidth(0), m_iHeight(0), m_bBloomEnabled(true),
-      m_fBloomIntensity(0.5f), m_fBloomThreshold(0.7f),
+      m_fBloomIntensity(1.2f), m_fBloomThreshold(0.35f),
       m_pFullscreenVS(nullptr), m_pBloomExtractPS(nullptr),
       m_pBloomBlurPS(nullptr), m_pCompositePS(nullptr), m_pBloomRT_Tex(nullptr),
       m_pBloomRT_RTV(nullptr), m_pBloomRT_SRV(nullptr),
