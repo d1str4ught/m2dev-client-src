@@ -15,15 +15,13 @@ cbuffer CBPostProcess : register(b0)
 {
     float fBloomThreshold;
     float fBloomIntensity;
-    float2 vTexelSize;      // 1.0/width, 1.0/height
+    float2 vTexelSize;
 };
 
-// ---- Textures ----
 Texture2D    texScene    : register(t0);
 Texture2D    texBloom    : register(t1);
 SamplerState samLinear   : register(s0);
 
-// ---- Fullscreen Triangle (no vertex buffer needed) ----
 struct VS_OUTPUT
 {
     float4 Position : SV_POSITION;
@@ -33,19 +31,17 @@ struct VS_OUTPUT
 VS_OUTPUT VS_Fullscreen(uint vertexID : SV_VertexID)
 {
     VS_OUTPUT output;
-    // Generate fullscreen triangle from vertex ID
     output.TexCoord = float2((vertexID << 1) & 2, vertexID & 2);
     output.Position = float4(output.TexCoord * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f), 0.0f, 1.0f);
     return output;
 }
 
-// ---- Bright-pass extract ----
+// ---- Bright-pass extract (soft knee) ----
 float4 PS_BloomExtract(VS_OUTPUT input) : SV_TARGET
 {
     float4 color = texScene.Sample(samLinear, input.TexCoord);
-    float brightness = dot(color.rgb, float3(0.2126f, 0.7152f, 0.0722f)); // luminance
-    // Soft knee — smooth falloff instead of hard cutoff
-    float knee = fBloomThreshold * 0.7f;
+    float brightness = dot(color.rgb, float3(0.2126f, 0.7152f, 0.0722f));
+    float knee = fBloomThreshold * 0.5f;
     float soft = brightness - fBloomThreshold + knee;
     soft = clamp(soft, 0.0f, 2.0f * knee);
     soft = soft * soft / (4.0f * knee + 0.00001f);
@@ -54,40 +50,75 @@ float4 PS_BloomExtract(VS_OUTPUT input) : SV_TARGET
     return float4(color.rgb * (contribution / (brightness + 0.00001f)), 1.0f);
 }
 
-// ---- Gaussian blur (13-tap, wider kernel for visible bloom) ----
+// ---- Gaussian blur (9-tap cross pattern) ----
 float4 PS_BloomBlur(VS_OUTPUT input) : SV_TARGET
 {
-    static const float weights[7] = { 0.1964825501511404f, 0.2969069646728344f,
-        0.09447039785044732f, 0.010381362401148057f,
-        0.2969069646728344f, 0.09447039785044732f, 0.010381362401148057f };
+    static const float w0 = 0.227027f;
+    static const float w1 = 0.1945946f;
+    static const float w2 = 0.1216216f;
+    static const float w3 = 0.054054f;
+    static const float w4 = 0.016216f;
 
-    float3 result = texScene.Sample(samLinear, input.TexCoord).rgb * 0.227027f;
-
-    // Wider blur radius for more visible bloom glow
-    for (int i = 1; i < 5; i++)
-    {
-        float2 offset = vTexelSize * float(i) * 3.0f;  // 3x wider than before
-        result += texScene.Sample(samLinear, input.TexCoord + float2(offset.x, 0.0f)).rgb * (0.1945946f / float(i));
-        result += texScene.Sample(samLinear, input.TexCoord - float2(offset.x, 0.0f)).rgb * (0.1945946f / float(i));
-        result += texScene.Sample(samLinear, input.TexCoord + float2(0.0f, offset.y)).rgb * (0.1945946f / float(i));
-        result += texScene.Sample(samLinear, input.TexCoord - float2(0.0f, offset.y)).rgb * (0.1945946f / float(i));
-    }
+    float3 result = texScene.Sample(samLinear, input.TexCoord).rgb * w0;
+    float2 t = vTexelSize * 2.0f;
+    result += texScene.Sample(samLinear, input.TexCoord + float2(t.x, 0)).rgb * w1;
+    result += texScene.Sample(samLinear, input.TexCoord - float2(t.x, 0)).rgb * w1;
+    result += texScene.Sample(samLinear, input.TexCoord + float2(0, t.y)).rgb * w1;
+    result += texScene.Sample(samLinear, input.TexCoord - float2(0, t.y)).rgb * w1;
+    t *= 2.0f;
+    result += texScene.Sample(samLinear, input.TexCoord + float2(t.x, 0)).rgb * w2;
+    result += texScene.Sample(samLinear, input.TexCoord - float2(t.x, 0)).rgb * w2;
+    result += texScene.Sample(samLinear, input.TexCoord + float2(0, t.y)).rgb * w2;
+    result += texScene.Sample(samLinear, input.TexCoord - float2(0, t.y)).rgb * w2;
+    t *= 1.5f;
+    result += texScene.Sample(samLinear, input.TexCoord + float2(t.x, 0)).rgb * w3;
+    result += texScene.Sample(samLinear, input.TexCoord - float2(t.x, 0)).rgb * w3;
+    result += texScene.Sample(samLinear, input.TexCoord + float2(0, t.y)).rgb * w3;
+    result += texScene.Sample(samLinear, input.TexCoord - float2(0, t.y)).rgb * w3;
+    t *= 1.5f;
+    result += texScene.Sample(samLinear, input.TexCoord + float2(t.x, 0)).rgb * w4;
+    result += texScene.Sample(samLinear, input.TexCoord - float2(t.x, 0)).rgb * w4;
+    result += texScene.Sample(samLinear, input.TexCoord + float2(0, t.y)).rgb * w4;
+    result += texScene.Sample(samLinear, input.TexCoord - float2(0, t.y)).rgb * w4;
     return float4(result * 0.5f, 1.0f);
 }
 
-// ---- Composite: scene + bloom (NO tonemapping — DX9 output is already sRGB) ----
+// ---- ACES Filmic Tonemapping ----
+float3 ACESFilm(float3 x)
+{
+    float a = 2.51f; float b = 0.03f;
+    float c = 2.43f; float d = 0.59f; float e = 0.14f;
+    return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
+}
+
+// ---- Composite: ACES tonemap + bloom + vignette + color grading ----
 float4 PS_Composite(VS_OUTPUT input) : SV_TARGET
 {
-    float3 sceneColor = texScene.Sample(samLinear, input.TexCoord).rgb;
-    float3 bloomColor = texBloom.Sample(samLinear, input.TexCoord).rgb;
+    float3 scene = texScene.Sample(samLinear, input.TexCoord).rgb;
+    float3 bloom = texBloom.Sample(samLinear, input.TexCoord).rgb;
 
-    // Additive bloom only — no tonemapping or gamma (input is already sRGB)
-    float3 result = sceneColor + bloomColor * fBloomIntensity;
+    // Additive bloom
+    float3 result = scene + bloom * fBloomIntensity;
 
-    // Clamp to prevent oversaturation
-    result = saturate(result);
+    // ACES filmic tonemapping
+    result = ACESFilm(result);
 
-    return float4(result, 1.0f);
+    // Contrast boost (smoothstep S-curve)
+    result = result * result * (3.0f - 2.0f * result);
+
+    // Color grading: warm shadows, cool highlights
+    float lum = dot(result, float3(0.2126f, 0.7152f, 0.0722f));
+    float3 warmTint = float3(1.03f, 0.98f, 0.93f);
+    float3 coolTint = float3(0.96f, 0.99f, 1.04f);
+    result *= lerp(warmTint, coolTint, saturate(lum * 1.5f));
+
+    // Vignette
+    float2 uv = input.TexCoord;
+    float vig = uv.x * uv.y * (1.0f - uv.x) * (1.0f - uv.y);
+    vig = saturate(pow(vig * 16.0f, 0.25f));
+    result *= vig;
+
+    return float4(saturate(result), 1.0f);
 }
 )";
 
@@ -134,7 +165,7 @@ static bool CompileShaderFromString(const char *szSource, const char *szEntry,
 CDX11PostProcess::CDX11PostProcess()
     : m_pDevice(nullptr), m_pContext(nullptr), m_pSwapChain(nullptr),
       m_bInitialized(false), m_iWidth(0), m_iHeight(0), m_bBloomEnabled(true),
-      m_fBloomIntensity(1.8f), m_fBloomThreshold(0.15f),
+      m_fBloomIntensity(0.5f), m_fBloomThreshold(0.7f),
       m_pFullscreenVS(nullptr), m_pBloomExtractPS(nullptr),
       m_pBloomBlurPS(nullptr), m_pCompositePS(nullptr), m_pBloomRT_Tex(nullptr),
       m_pBloomRT_RTV(nullptr), m_pBloomRT_SRV(nullptr),
