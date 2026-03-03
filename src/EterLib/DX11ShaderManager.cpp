@@ -32,6 +32,13 @@ cbuffer CBPerMaterial : register(b1)
     float fPad2;
 };
 
+// Sun lighting constants (hardcoded for now — warm afternoon sun)
+static const float3 SUN_DIR       = normalize(float3(-0.5f, -0.8f, 0.3f));
+static const float3 SUN_COLOR     = float3(1.0f, 0.9f, 0.75f);     // warm sunlight
+static const float3 AMBIENT_SKY   = float3(0.35f, 0.4f, 0.5f);     // cool sky ambient
+static const float3 AMBIENT_GROUND = float3(0.15f, 0.12f, 0.1f);   // warm ground bounce
+static const float3 FOG_COLOR_ATM = float3(0.6f, 0.65f, 0.75f);    // atmospheric fog
+
 // ---- Textures and Samplers ----
 Texture2D    texDiffuse : register(t0);
 SamplerState samLinear  : register(s0);
@@ -50,6 +57,13 @@ float ComputeFog(float3 pos)
     float4 worldPos = mul(float4(pos, 1.0f), matWorld);
     float dist = length(worldPos.xyz);
     return saturate((fFogEnd - dist) / (fFogEnd - fFogStart + 0.0001f));
+}
+
+// Hemisphere ambient: blend between ground and sky based on normal Y
+float3 HemisphereAmbient(float3 worldNormal)
+{
+    float up = worldNormal.y * 0.5f + 0.5f;
+    return lerp(AMBIENT_GROUND, AMBIENT_SKY, up);
 }
 
 // ====== VS_FFP: Position + Diffuse + TexCoord (PDT) ======
@@ -88,16 +102,27 @@ VS_OUTPUT VS_PD(VS_PD_INPUT input)
     return o;
 }
 
-// ====== VS_PNT: Position + Normal + TexCoord (basic directional light) ======
+// ====== VS_PNT: Position + Normal + TexCoord (full directional lighting) ======
 struct VS_PNT_INPUT { float3 Position : POSITION; float3 Normal : NORMAL; float2 TexCoord : TEXCOORD0; };
 VS_OUTPUT VS_PNT(VS_PNT_INPUT input)
 {
     VS_OUTPUT o;
     o.Position = mul(float4(input.Position, 1.0f), matWorldViewProj);
-    // Basic hemisphere lighting: dot(normal, up) * 0.5 + 0.5
-    float3 worldNormal = mul(input.Normal, (float3x3)matWorld);
-    float NdotL = dot(normalize(worldNormal), float3(0, 1, 0)) * 0.5f + 0.5f;
-    o.Color    = float4(NdotL, NdotL, NdotL, 1.0f);
+
+    // World-space normal for lighting
+    float3 wN = normalize(mul(input.Normal, (float3x3)matWorld));
+
+    // Directional sun diffuse (N dot L)
+    float NdotL = max(dot(wN, -SUN_DIR), 0.0f);
+    float3 diffuse = SUN_COLOR * NdotL;
+
+    // Hemisphere ambient
+    float3 ambient = HemisphereAmbient(wN);
+
+    // Combined: ambient + diffuse
+    float3 lit = ambient + diffuse * 0.7f;
+
+    o.Color    = float4(lit, 1.0f);
     o.TexCoord = input.TexCoord;
     o.FogFactor = ComputeFog(input.Position);
     return o;
@@ -115,7 +140,7 @@ VS_OUTPUT VS_TL(VS_TL_INPUT input)
     return o;
 }
 
-// ---- Pixel Shader (shared by all variants) ----
+// ---- Pixel Shader (shared by textured variants) ----
 float4 PS_FFP(VS_OUTPUT input) : SV_TARGET
 {
     float4 texColor = texDiffuse.Sample(samLinear, input.TexCoord);
@@ -127,9 +152,10 @@ float4 PS_FFP(VS_OUTPUT input) : SV_TARGET
             discard;
     }
 
+    // Atmospheric fog (blend to warm-grey fog color)
     if (fFogEnable > 0.5f)
     {
-        finalColor.rgb = lerp(vFogColor.rgb, finalColor.rgb, input.FogFactor);
+        finalColor.rgb = lerp(FOG_COLOR_ATM, finalColor.rgb, input.FogFactor);
     }
 
     return finalColor;
@@ -146,7 +172,7 @@ float4 PS_PD(VS_OUTPUT input) : SV_TARGET
     }
     if (fFogEnable > 0.5f)
     {
-        finalColor.rgb = lerp(vFogColor.rgb, finalColor.rgb, input.FogFactor);
+        finalColor.rgb = lerp(FOG_COLOR_ATM, finalColor.rgb, input.FogFactor);
     }
     return finalColor;
 }

@@ -83,19 +83,38 @@ float4 PS_BloomBlur(VS_OUTPUT input) : SV_TARGET
     return float4(result * 0.5f, 1.0f);
 }
 
-// ---- Composite: standard bloom + gamma correct ----
+// ---- ACES (subtle — preserve natural look) ----
+float3 ACESSoft(float3 x)
+{
+    float a = 2.51f; float b = 0.03f;
+    float c = 2.43f; float d = 0.59f; float e = 0.14f;
+    return saturate((x * (a * x + b)) / (x * (c * x + d) + e));
+}
+
+// ---- Composite: bloom + subtle tonemap + warm grade ----
 float4 PS_Composite(VS_OUTPUT input) : SV_TARGET
 {
     float3 scene = texScene.Sample(samLinear, input.TexCoord).rgb;
     float3 bloom = texBloom.Sample(samLinear, input.TexCoord).rgb;
 
-    // Simple additive bloom (standard MMORPG approach)
+    // Simple additive bloom
     float3 result = scene + bloom * fBloomIntensity;
 
-    // Clamp to prevent oversaturation
-    result = saturate(result);
+    // Gentle ACES tonemapping (natural contrast, not filmic)
+    result = ACESSoft(result);
 
-    return float4(result, 1.0f);
+    // Soft warm grade (very subtle — just a hint of warmth)
+    float lum = dot(result, float3(0.2126f, 0.7152f, 0.0722f));
+    float3 warmTint = float3(1.02f, 0.99f, 0.96f);
+    result *= warmTint;
+
+    // Very subtle vignette (barely visible)
+    float2 uv = input.TexCoord;
+    float vig = uv.x * uv.y * (1.0f - uv.x) * (1.0f - uv.y);
+    vig = saturate(pow(vig * 16.0f, 0.35f));
+    result *= vig;
+
+    return float4(saturate(result), 1.0f);
 }
 )";
 
