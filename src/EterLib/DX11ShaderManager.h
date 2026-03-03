@@ -56,6 +56,9 @@ public:
   // Bind the PDT (position + diffuse + texcoord) shader
   void BindFFP_PDT();
 
+  // Auto-select and bind the right shader for a given FVF
+  void BindForFVF(DWORD dwFVF);
+
   // ------ Constant buffer updates ------
 
   // Update WVP matrix (called when transforms change)
@@ -67,7 +70,7 @@ public:
                             bool fogEnable, const float *fogColor,
                             float fogStart, float fogEnd);
 
-  // ------ Accessors ------
+  // ------ Accessors (backwards compat) ------
   ID3D11VertexShader *GetFFP_VS() const { return m_pFFP_VS; }
   ID3D11PixelShader *GetFFP_PS() const { return m_pFFP_PS; }
   ID3D11InputLayout *GetFFP_InputLayout() const { return m_pFFP_InputLayout; }
@@ -75,11 +78,19 @@ public:
 private:
   bool CompileShader(const char *szSource, const char *szEntryPoint,
                      const char *szProfile, ID3D10Blob **ppBlob);
+  void BindForVariant(int variant);
 
   ID3D11Device *m_pDevice;
   ID3D11DeviceContext *m_pContext;
 
-  // FFP PDT shader objects
+  // Variant shader arrays (indexed by EFFPVariant enum in .cpp)
+  static const int MAX_VARIANTS = 5;
+  ID3D11VertexShader *m_pFFP_VS_Variants[MAX_VARIANTS];
+  ID3D11PixelShader *m_pFFP_PS_Variants[MAX_VARIANTS];
+  ID3D11InputLayout *m_pFFP_InputLayouts[MAX_VARIANTS];
+  int m_iCurrentVariant;
+
+  // Backwards-compat aliases (point to variant[0] = PDT)
   ID3D11VertexShader *m_pFFP_VS;
   ID3D11PixelShader *m_pFFP_PS;
   ID3D11InputLayout *m_pFFP_InputLayout;
