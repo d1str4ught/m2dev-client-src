@@ -690,6 +690,17 @@ bool CScreen::Begin() {
     return false;
   }
 
+  // DX11: Bind scene render target + depth at frame start
+  if (ms_bDX11PostProcessEnabled && ms_pD3D11Context && ms_pSceneRTV &&
+      ms_pDepthStencilView) {
+    ms_pD3D11Context->OMSetRenderTargets(1, &ms_pSceneRTV,
+                                         ms_pDepthStencilView);
+    float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+    ms_pD3D11Context->ClearRenderTargetView(ms_pSceneRTV, clearColor);
+    ms_pD3D11Context->ClearDepthStencilView(
+        ms_pDepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+  }
+
   return true;
 }
 
@@ -702,8 +713,8 @@ void CScreen::Show(HWND hWnd) {
   assert(ms_lpd3dDevice != NULL);
 
   bool bDX11Active = ms_bDX11PostProcessEnabled && ms_pPostProcess &&
-                     ms_pPostProcess->IsInitialized() && ms_pSharedTexture &&
-                     ms_pSharedSRV;
+                     ms_pPostProcess->IsInitialized() &&
+                     (ms_pSceneSRV || (ms_pSharedTexture && ms_pSharedSRV));
 
   // Debug: Log DX11 post-process status on first frame
   static bool s_bLoggedOnce = false;
@@ -711,44 +722,57 @@ void CScreen::Show(HWND hWnd) {
     s_bLoggedOnce = true;
     char szDbg[256];
     sprintf(szDbg,
-            "[DX11] PostProcess=%p Init=%d SharedTex=%p SharedSRV=%p => "
+            "[DX11] PostProcess=%p Init=%d SceneSRV=%p SharedSRV=%p => "
             "Active=%d\n",
             ms_pPostProcess,
             ms_pPostProcess ? ms_pPostProcess->IsInitialized() : 0,
-            ms_pSharedTexture, ms_pSharedSRV, bDX11Active ? 1 : 0);
+            ms_pSceneSRV, ms_pSharedSRV, bDX11Active ? 1 : 0);
     OutputDebugStringA(szDbg);
   }
 
-  // DX11: Copy DX9 back buffer BEFORE present
+  // DX11: Use native scene RT if available, otherwise fall back to DX9 copy
   if (bDX11Active) {
-    IDirect3DSurface9 *pBackBuffer = nullptr;
-    if (SUCCEEDED(ms_lpd3dDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO,
-                                                &pBackBuffer))) {
-      D3DSURFACE_DESC bbDesc;
-      pBackBuffer->GetDesc(&bbDesc);
+    ID3D11ShaderResourceView *pInputSRV = nullptr;
 
-      IDirect3DSurface9 *pSysSurface = nullptr;
-      if (SUCCEEDED(ms_lpd3dDevice->CreateOffscreenPlainSurface(
-              bbDesc.Width, bbDesc.Height, bbDesc.Format, D3DPOOL_SYSTEMMEM,
-              &pSysSurface, nullptr))) {
-        if (SUCCEEDED(ms_lpd3dDevice->GetRenderTargetData(pBackBuffer,
-                                                          pSysSurface))) {
-          D3DLOCKED_RECT lockedRect;
-          if (SUCCEEDED(pSysSurface->LockRect(&lockedRect, nullptr,
-                                              D3DLOCK_READONLY))) {
-            ms_pD3D11Context->UpdateSubresource(ms_pSharedTexture, 0, nullptr,
-                                                lockedRect.pBits,
-                                                lockedRect.Pitch, 0);
-            pSysSurface->UnlockRect();
+    if (ms_pSceneSRV) {
+      // Phase 2A: DX11 rendered directly to scene RT — use it
+      // Unbind scene RT before reading as SRV
+      ID3D11RenderTargetView *nullRTV = nullptr;
+      ms_pD3D11Context->OMSetRenderTargets(1, &nullRTV, nullptr);
+      pInputSRV = ms_pSceneSRV;
+    } else {
+      // Fallback: Copy DX9 back buffer to shared texture
+      IDirect3DSurface9 *pBackBuffer = nullptr;
+      if (SUCCEEDED(ms_lpd3dDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO,
+                                                  &pBackBuffer))) {
+        D3DSURFACE_DESC bbDesc;
+        pBackBuffer->GetDesc(&bbDesc);
+
+        IDirect3DSurface9 *pSysSurface = nullptr;
+        if (SUCCEEDED(ms_lpd3dDevice->CreateOffscreenPlainSurface(
+                bbDesc.Width, bbDesc.Height, bbDesc.Format, D3DPOOL_SYSTEMMEM,
+                &pSysSurface, nullptr))) {
+          if (SUCCEEDED(ms_lpd3dDevice->GetRenderTargetData(pBackBuffer,
+                                                            pSysSurface))) {
+            D3DLOCKED_RECT lockedRect;
+            if (SUCCEEDED(pSysSurface->LockRect(&lockedRect, nullptr,
+                                                D3DLOCK_READONLY))) {
+              ms_pD3D11Context->UpdateSubresource(ms_pSharedTexture, 0, nullptr,
+                                                  lockedRect.pBits,
+                                                  lockedRect.Pitch, 0);
+              pSysSurface->UnlockRect();
+            }
           }
+          pSysSurface->Release();
         }
-        pSysSurface->Release();
+        pBackBuffer->Release();
       }
-      pBackBuffer->Release();
+      pInputSRV = ms_pSharedSRV;
     }
 
-    // Present via DX11 post-processing only (no DX9 present — avoids flicker)
-    ms_pPostProcess->ApplyAndPresent(ms_pSharedSRV);
+    // Present via DX11 post-processing
+    if (pInputSRV)
+      ms_pPostProcess->ApplyAndPresent(pInputSRV);
   } else {
     // Fallback: DX9-only present (no DX11 post-processing available)
     if (g_isBrowserMode) {

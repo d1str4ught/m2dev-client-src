@@ -108,6 +108,9 @@ D3D_FEATURE_LEVEL CGraphicBase::ms_featureLevel = D3D_FEATURE_LEVEL_11_0;
 ID3D11Texture2D *CGraphicBase::ms_pSharedTexture = nullptr;
 ID3D11ShaderResourceView *CGraphicBase::ms_pSharedSRV = nullptr;
 CDX11PostProcess *CGraphicBase::ms_pPostProcess = nullptr;
+ID3D11Texture2D *CGraphicBase::ms_pSceneRT = nullptr;
+ID3D11RenderTargetView *CGraphicBase::ms_pSceneRTV = nullptr;
+ID3D11ShaderResourceView *CGraphicBase::ms_pSceneSRV = nullptr;
 bool CGraphicBase::ms_bDX11PostProcessEnabled = true;
 
 bool CGraphicBase::IsLowTextureMemory() { return ms_isLowTextureMemory; }

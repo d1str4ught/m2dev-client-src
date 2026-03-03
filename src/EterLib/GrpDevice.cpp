@@ -646,7 +646,7 @@ bool CGraphicDevice::__CreateDX11Device(HWND hWnd, int iWidth, int iHeight,
   viewport.MaxDepth = 1.0f;
   ms_pD3D11Context->RSSetViewports(1, &viewport);
 
-  // Create shared texture for DX9->DX11 frame bridge
+  // Create shared texture for DX9->DX11 frame bridge (fallback)
   {
     D3D11_TEXTURE2D_DESC sharedDesc = {};
     sharedDesc.Width = iWidth;
@@ -663,6 +663,27 @@ bool CGraphicDevice::__CreateDX11Device(HWND hWnd, int iWidth, int iHeight,
     if (SUCCEEDED(hr))
       ms_pD3D11Device->CreateShaderResourceView(ms_pSharedTexture, nullptr,
                                                 &ms_pSharedSRV);
+  }
+
+  // Create native DX11 scene render target (Phase 2A)
+  {
+    D3D11_TEXTURE2D_DESC sceneDesc = {};
+    sceneDesc.Width = iWidth;
+    sceneDesc.Height = iHeight;
+    sceneDesc.MipLevels = 1;
+    sceneDesc.ArraySize = 1;
+    sceneDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    sceneDesc.SampleDesc.Count = 1;
+    sceneDesc.Usage = D3D11_USAGE_DEFAULT;
+    sceneDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+
+    hr = ms_pD3D11Device->CreateTexture2D(&sceneDesc, nullptr, &ms_pSceneRT);
+    if (SUCCEEDED(hr)) {
+      ms_pD3D11Device->CreateRenderTargetView(ms_pSceneRT, nullptr,
+                                              &ms_pSceneRTV);
+      ms_pD3D11Device->CreateShaderResourceView(ms_pSceneRT, nullptr,
+                                                &ms_pSceneSRV);
+    }
   }
 
   // Initialize post-processing pipeline

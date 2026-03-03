@@ -315,10 +315,15 @@ public:
   static ID3D11Texture2D *ms_pDepthStencilBuffer;
   static D3D_FEATURE_LEVEL ms_featureLevel;
 
-  // DX9→DX11 frame bridge (shared surface)
+  // DX9→DX11 frame bridge (shared surface) — kept for fallback
   static ID3D11Texture2D *ms_pSharedTexture;
   static ID3D11ShaderResourceView *ms_pSharedSRV;
   static CDX11PostProcess *ms_pPostProcess;
+
+  // DX11 native scene render target (Phase 2A)
+  static ID3D11Texture2D *ms_pSceneRT;
+  static ID3D11RenderTargetView *ms_pSceneRTV;
+  static ID3D11ShaderResourceView *ms_pSceneSRV;
 
   // DX11 post-processing toggle (runtime)
   static bool ms_bDX11PostProcessEnabled;
