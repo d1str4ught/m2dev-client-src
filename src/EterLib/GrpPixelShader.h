@@ -2,20 +2,22 @@
 
 #include "GrpBase.h"
 
-class CPixelShader : public CGraphicBase
-{
-	public:
-		CPixelShader();
-		virtual ~CPixelShader();
+struct ID3D11PixelShader;
 
-		void Destroy();
-		bool CreateFromDiskFile(const char* c_szFileName);
+class CPixelShader : public CGraphicBase {
+public:
+  CPixelShader();
+  virtual ~CPixelShader();
 
-		void Set();
+  void Destroy();
+  bool CreateFromDiskFile(const char *c_szFileName);
 
-	protected:
-		void Initialize();
+  void Set();
 
-	protected:
-		LPDIRECT3DPIXELSHADER9 m_handle;
+protected:
+  void Initialize();
+
+protected:
+  LPDIRECT3DPIXELSHADER9 m_handle;
+  ID3D11PixelShader *m_pDX11Handle;
 };
