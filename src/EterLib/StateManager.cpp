@@ -806,13 +806,17 @@ HRESULT CStateManager::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType,
     m_bDX11TransformDirty = false;
   }
 
-  // DX11: Emit draw call alongside DX9
+  // DX11: Draw emission disabled — needs scene render target (currently only
+  // post-process RT exists) Uncomment when DX11 has its own scene RT bound
+  // before draw calls
+#if 0
   if (CGraphicBase::ms_pD3D11Context) {
     CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
         MapTopology(PrimitiveType));
     UINT vertexCount = PrimCountToVertexCount(PrimitiveType, PrimitiveCount);
     CGraphicBase::ms_pD3D11Context->Draw(vertexCount, StartVertex);
   }
+#endif
 
   return (
       m_lpD3DDev->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount));
@@ -908,13 +912,15 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
     m_bDX11TransformDirty = false;
   }
 
-  // DX11: Emit indexed draw
+  // DX11: Draw emission disabled — needs scene RT
+#if 0
   if (CGraphicBase::ms_pD3D11Context) {
     CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
         MapTopology(PrimitiveType));
     UINT indexCount = PrimCountToIndexCount(PrimitiveType, primCount);
     CGraphicBase::ms_pD3D11Context->DrawIndexed(indexCount, startIndex, 0);
   }
+#endif
 
   return (m_lpD3DDev->DrawIndexedPrimitive(PrimitiveType, 0, minIndex,
                                            NumVertices, startIndex, primCount));
@@ -939,6 +945,8 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
     m_bDX11TransformDirty = false;
   }
 
+  // DX11: Draw emission disabled — needs scene RT
+#if 0
   if (CGraphicBase::ms_pD3D11Context) {
     CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
         MapTopology(PrimitiveType));
@@ -946,6 +954,7 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
     CGraphicBase::ms_pD3D11Context->DrawIndexed(indexCount, startIndex,
                                                 baseVertexIndex);
   }
+#endif
 
   return (m_lpD3DDev->DrawIndexedPrimitive(PrimitiveType, baseVertexIndex,
                                            minIndex, NumVertices, startIndex,
