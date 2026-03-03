@@ -129,6 +129,10 @@ bool CGraphicImageTexture::CreateFromDDSTexture(UINT bufSize,
         ms_pD3D11Device, reinterpret_cast<const uint8_t *>(c_pvBuf), bufSize,
         &m_pDX11SRV);
 
+  // Register in the DX9→DX11 texture registry
+  if (m_lpd3dTexture && m_pDX11SRV)
+    RegisterDX11SRV(m_lpd3dTexture, m_pDX11SRV);
+
   return true;
 }
 
@@ -189,6 +193,10 @@ bool CGraphicImageTexture::CreateFromSTB(UINT bufSize, const void *c_pvBuf) {
           DX11Tex::CreateTextureFromRGBA(ms_pD3D11Device, width, height,
                                          (const uint8_t *)rect.pBits, true,
                                          &m_pDX11SRV);
+
+        // Register in the DX9→DX11 texture registry
+        if (m_lpd3dTexture && m_pDX11SRV)
+          RegisterDX11SRV(m_lpd3dTexture, m_pDX11SRV);
       } else {
         texture->Release();
       }

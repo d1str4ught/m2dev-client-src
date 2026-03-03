@@ -1,5 +1,6 @@
 #include "StateManager.h"
 #include "GrpLightManager.h"
+#include "GrpTexture.h"
 #include "StdAfx.h"
 
 // #define StateManager_Assert(a) if (!(a)) puts("assert"#a)
@@ -490,6 +491,14 @@ void CStateManager::SetTexture(DWORD dwStage, LPDIRECT3DBASETEXTURE9 pTexture) {
 
   m_lpD3DDev->SetTexture(dwStage, pTexture);
   m_CurrentState.m_Textures[dwStage] = pTexture;
+
+  // DX11: Bind matching SRV via static texture registry
+  if (CGraphicBase::ms_pD3D11Context) {
+    ID3D11ShaderResourceView *pSRV = CGraphicTexture::LookupDX11SRV(pTexture);
+    CGraphicBase::ms_pD3D11Context->PSSetShaderResources(
+        dwStage, 1,
+        &pSRV); // nullptr unbinds
+  }
 }
 
 void CStateManager::GetTexture(DWORD dwStage,
@@ -794,6 +803,60 @@ HRESULT CStateManager::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType,
 
   return (
       m_lpD3DDev->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount));
+}
+
+// Helper: map D3DPRIMITIVETYPE to D3D11_PRIMITIVE_TOPOLOGY
+static D3D11_PRIMITIVE_TOPOLOGY MapTopology(D3DPRIMITIVETYPE pt) {
+  switch (pt) {
+  case D3DPT_POINTLIST:
+    return D3D11_PRIMITIVE_TOPOLOGY_POINTLIST;
+  case D3DPT_LINELIST:
+    return D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
+  case D3DPT_LINESTRIP:
+    return D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP;
+  case D3DPT_TRIANGLELIST:
+    return D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+  case D3DPT_TRIANGLESTRIP:
+    return D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+  case D3DPT_TRIANGLEFAN:
+    return D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST; // DX11 has no fan
+  default:
+    return D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+  }
+}
+
+static UINT PrimCountToVertexCount(D3DPRIMITIVETYPE pt, UINT primCount) {
+  switch (pt) {
+  case D3DPT_POINTLIST:
+    return primCount;
+  case D3DPT_LINELIST:
+    return primCount * 2;
+  case D3DPT_LINESTRIP:
+    return primCount + 1;
+  case D3DPT_TRIANGLELIST:
+    return primCount * 3;
+  case D3DPT_TRIANGLESTRIP:
+    return primCount + 2;
+  case D3DPT_TRIANGLEFAN:
+    return primCount + 2; // approximate
+  default:
+    return primCount * 3;
+  }
+}
+
+static UINT PrimCountToIndexCount(D3DPRIMITIVETYPE pt, UINT primCount) {
+  switch (pt) {
+  case D3DPT_TRIANGLELIST:
+    return primCount * 3;
+  case D3DPT_TRIANGLESTRIP:
+    return primCount + 2;
+  case D3DPT_LINELIST:
+    return primCount * 2;
+  case D3DPT_LINESTRIP:
+    return primCount + 1;
+  default:
+    return primCount * 3;
+  }
 }
 
 HRESULT CStateManager::DrawPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType,
