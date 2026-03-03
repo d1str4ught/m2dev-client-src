@@ -134,7 +134,7 @@ static bool CompileShaderFromString(const char *szSource, const char *szEntry,
 CDX11PostProcess::CDX11PostProcess()
     : m_pDevice(nullptr), m_pContext(nullptr), m_pSwapChain(nullptr),
       m_bInitialized(false), m_iWidth(0), m_iHeight(0), m_bBloomEnabled(true),
-      m_fBloomIntensity(1.2f), m_fBloomThreshold(0.35f),
+      m_fBloomIntensity(1.8f), m_fBloomThreshold(0.15f),
       m_pFullscreenVS(nullptr), m_pBloomExtractPS(nullptr),
       m_pBloomBlurPS(nullptr), m_pCompositePS(nullptr), m_pBloomRT_Tex(nullptr),
       m_pBloomRT_RTV(nullptr), m_pBloomRT_SRV(nullptr),
@@ -154,13 +154,18 @@ bool CDX11PostProcess::Initialize(ID3D11Device *pDevice,
   m_iWidth = width;
   m_iHeight = height;
 
-  if (!CreateShaders())
+  if (!CreateShaders()) {
+    OutputDebugStringA("[DX11 PostProcess] CreateShaders FAILED\n");
     return false;
+  }
 
-  if (!CreateResources(width, height))
+  if (!CreateResources(width, height)) {
+    OutputDebugStringA("[DX11 PostProcess] CreateResources FAILED\n");
     return false;
+  }
 
   m_bInitialized = true;
+  OutputDebugStringA("[DX11 PostProcess] Initialized OK — bloom enabled\n");
   return true;
 }
 

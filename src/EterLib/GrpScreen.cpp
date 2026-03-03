@@ -704,8 +704,21 @@ void CScreen::Show(HWND hWnd) {
   bool bDX11Active = ms_pPostProcess && ms_pPostProcess->IsInitialized() &&
                      ms_pSharedTexture && ms_pSharedSRV;
 
-  // DX11: Copy DX9 back buffer BEFORE present (back buffer is undefined after
-  // present)
+  // Debug: Log DX11 post-process status on first frame
+  static bool s_bLoggedOnce = false;
+  if (!s_bLoggedOnce) {
+    s_bLoggedOnce = true;
+    char szDbg[256];
+    sprintf(szDbg,
+            "[DX11] PostProcess=%p Init=%d SharedTex=%p SharedSRV=%p => "
+            "Active=%d\n",
+            ms_pPostProcess,
+            ms_pPostProcess ? ms_pPostProcess->IsInitialized() : 0,
+            ms_pSharedTexture, ms_pSharedSRV, bDX11Active ? 1 : 0);
+    OutputDebugStringA(szDbg);
+  }
+
+  // DX11: Copy DX9 back buffer BEFORE present
   if (bDX11Active) {
     IDirect3DSurface9 *pBackBuffer = nullptr;
     if (SUCCEEDED(ms_lpd3dDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO,
