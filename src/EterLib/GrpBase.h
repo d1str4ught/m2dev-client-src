@@ -14,6 +14,7 @@ struct ID3D11Texture2D;
 struct ID3D11ShaderResourceView;
 enum D3D_FEATURE_LEVEL : int;
 class CDX11PostProcess;
+class CDX11ShadowMap;
 
 void PixelPositionToD3DXVECTOR3(const D3DXVECTOR3 &c_rkPPosSrc,
                                 D3DXVECTOR3 *pv3Dst);
@@ -324,6 +325,9 @@ public:
   static ID3D11Texture2D *ms_pSceneRT;
   static ID3D11RenderTargetView *ms_pSceneRTV;
   static ID3D11ShaderResourceView *ms_pSceneSRV;
+
+  // DX11 shadow map (Phase 2B)
+  static CDX11ShadowMap *ms_pShadowMap;
 
   // DX11 post-processing toggle (runtime)
   static bool ms_bDX11PostProcessEnabled;

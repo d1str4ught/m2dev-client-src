@@ -1,6 +1,7 @@
 #include "GrpScreen.h"
 #include "Camera.h"
 #include "DX11PostProcess.h"
+#include "DX11ShadowMap.h"
 #include "StateManager.h"
 #include "StdAfx.h"
 
@@ -699,6 +700,25 @@ bool CScreen::Begin() {
     ms_pD3D11Context->ClearRenderTargetView(ms_pSceneRTV, clearColor);
     ms_pD3D11Context->ClearDepthStencilView(
         ms_pDepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+
+    // Shadow map: update light matrix and bind shadow resources
+    if (ms_pShadowMap && ms_pShadowMap->IsInitialized()) {
+      // Camera position for shadow frustum centering
+      float camPos[3] = {ms_matView._41, ms_matView._42, ms_matView._43};
+      ms_pShadowMap->UpdateLightMatrix(camPos, 500.0f);
+
+      // Bind shadow SRV at t2 for pixel shader
+      ID3D11ShaderResourceView *pShadowSRV = ms_pShadowMap->GetShadowSRV();
+      ms_pD3D11Context->PSSetShaderResources(2, 1, &pShadowSRV);
+
+      // Bind shadow comparison sampler at s1
+      ID3D11SamplerState *pShadowSampler = ms_pShadowMap->GetShadowSampler();
+      ms_pD3D11Context->PSSetSamplers(1, 1, &pShadowSampler);
+
+      // Bind shadow constant buffer at b2 for vertex shader
+      ID3D11Buffer *pShadowCB = ms_pShadowMap->GetShadowCB();
+      ms_pD3D11Context->VSSetConstantBuffers(2, 1, &pShadowCB);
+    }
   }
 
   return true;

@@ -111,6 +111,7 @@ CDX11PostProcess *CGraphicBase::ms_pPostProcess = nullptr;
 ID3D11Texture2D *CGraphicBase::ms_pSceneRT = nullptr;
 ID3D11RenderTargetView *CGraphicBase::ms_pSceneRTV = nullptr;
 ID3D11ShaderResourceView *CGraphicBase::ms_pSceneSRV = nullptr;
+CDX11ShadowMap *CGraphicBase::ms_pShadowMap = nullptr;
 bool CGraphicBase::ms_bDX11PostProcessEnabled = true;
 
 bool CGraphicBase::IsLowTextureMemory() { return ms_isLowTextureMemory; }

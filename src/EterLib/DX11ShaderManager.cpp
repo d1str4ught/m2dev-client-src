@@ -32,6 +32,11 @@ cbuffer CBPerMaterial : register(b1)
     float fPad2;
 };
 
+cbuffer CBShadow : register(b2)
+{
+    float4x4 matLightVP;
+};
+
 // Sun lighting constants (hardcoded for now — warm afternoon sun)
 static const float3 SUN_DIR       = normalize(float3(-0.5f, -0.8f, 0.3f));
 static const float3 SUN_COLOR     = float3(1.0f, 0.9f, 0.75f);     // warm sunlight
@@ -40,16 +45,19 @@ static const float3 AMBIENT_GROUND = float3(0.15f, 0.12f, 0.1f);   // warm groun
 static const float3 FOG_COLOR_ATM = float3(0.6f, 0.65f, 0.75f);    // atmospheric fog
 
 // ---- Textures and Samplers ----
-Texture2D    texDiffuse : register(t0);
-SamplerState samLinear  : register(s0);
+Texture2D    texDiffuse  : register(t0);
+SamplerState samLinear   : register(s0);
+Texture2D    texShadow   : register(t2);
+SamplerComparisonState samShadow : register(s1);
 
 // ---- Shared Output ----
 struct VS_OUTPUT
 {
-    float4 Position : SV_POSITION;
-    float4 Color    : COLOR0;
-    float2 TexCoord : TEXCOORD0;
+    float4 Position  : SV_POSITION;
+    float4 Color     : COLOR0;
+    float2 TexCoord  : TEXCOORD0;
     float  FogFactor : TEXCOORD1;
+    float4 ShadowPos : TEXCOORD2;
 };
 
 float ComputeFog(float3 pos)
@@ -75,6 +83,9 @@ VS_OUTPUT VS_FFP(VS_PDT_INPUT input)
     o.Color    = input.Color;
     o.TexCoord = input.TexCoord;
     o.FogFactor = ComputeFog(input.Position);
+    // Shadow UV (light space)
+    float4 wPos = mul(float4(input.Position, 1.0f), matWorld);
+    o.ShadowPos = mul(wPos, matLightVP);
     return o;
 }
 
@@ -87,6 +98,8 @@ VS_OUTPUT VS_PT(VS_PT_INPUT input)
     o.Color    = float4(1, 1, 1, 1);
     o.TexCoord = input.TexCoord;
     o.FogFactor = ComputeFog(input.Position);
+    float4 wPos = mul(float4(input.Position, 1.0f), matWorld);
+    o.ShadowPos = mul(wPos, matLightVP);
     return o;
 }
 
@@ -99,6 +112,8 @@ VS_OUTPUT VS_PD(VS_PD_INPUT input)
     o.Color    = input.Color;
     o.TexCoord = float2(0, 0);
     o.FogFactor = ComputeFog(input.Position);
+    float4 wPos = mul(float4(input.Position, 1.0f), matWorld);
+    o.ShadowPos = mul(wPos, matLightVP);
     return o;
 }
 
@@ -125,6 +140,10 @@ VS_OUTPUT VS_PNT(VS_PNT_INPUT input)
     o.Color    = float4(lit, 1.0f);
     o.TexCoord = input.TexCoord;
     o.FogFactor = ComputeFog(input.Position);
+
+    // Shadow UV
+    float4 wPos = mul(float4(input.Position, 1.0f), matWorld);
+    o.ShadowPos = mul(wPos, matLightVP);
     return o;
 }
 
@@ -137,7 +156,37 @@ VS_OUTPUT VS_TL(VS_TL_INPUT input)
     o.Color    = input.Color;
     o.TexCoord = input.TexCoord;
     o.FogFactor = 1.0f;  // No fog for UI/2D
+    o.ShadowPos = float4(0, 0, 0, 1);  // No shadows for UI
     return o;
+}
+
+// ---- Shadow sampling helper (2x2 PCF) ----
+float SampleShadow(float4 shadowPos)
+{
+    // Perspective divide
+    float3 proj = shadowPos.xyz / shadowPos.w;
+
+    // NDC to UV: [-1,1] -> [0,1], flip Y
+    float2 uv = proj.xy * float2(0.5f, -0.5f) + 0.5f;
+    float depth = proj.z;
+
+    // Outside shadow frustum = fully lit
+    if (uv.x < 0 || uv.x > 1 || uv.y < 0 || uv.y > 1 || depth > 1)
+        return 1.0f;
+
+    // 2x2 PCF
+    float texelSize = 1.0f / 2048.0f;
+    float shadow = 0.0f;
+    shadow += texShadow.SampleCmpLevelZero(samShadow, uv + float2(-texelSize, -texelSize), depth);
+    shadow += texShadow.SampleCmpLevelZero(samShadow, uv + float2( texelSize, -texelSize), depth);
+    shadow += texShadow.SampleCmpLevelZero(samShadow, uv + float2(-texelSize,  texelSize), depth);
+    shadow += texShadow.SampleCmpLevelZero(samShadow, uv + float2( texelSize,  texelSize), depth);
+    shadow *= 0.25f;
+
+    // Fade shadows at frustum edges
+    float2 fade = smoothstep(0.0f, 0.05f, uv) * smoothstep(0.0f, 0.05f, 1.0f - uv);
+    float edgeFade = fade.x * fade.y;
+    return lerp(1.0f, shadow, edgeFade);
 }
 
 // ---- Pixel Shader (shared by textured variants) ----
@@ -151,6 +200,10 @@ float4 PS_FFP(VS_OUTPUT input) : SV_TARGET
         if (finalColor.a < fAlphaRef)
             discard;
     }
+
+    // Apply shadow
+    float shadowFactor = SampleShadow(input.ShadowPos);
+    finalColor.rgb *= lerp(0.35f, 1.0f, shadowFactor);  // shadowed areas get 35% light
 
     // Atmospheric fog (blend to warm-grey fog color)
     if (fFogEnable > 0.5f)

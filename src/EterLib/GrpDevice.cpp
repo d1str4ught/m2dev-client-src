@@ -1,5 +1,6 @@
 #include "GrpDevice.h"
 #include "DX11PostProcess.h"
+#include "DX11ShadowMap.h"
 #include "EterBase/Debug.h"
 #include "EterBase/Stl.h"
 #include "StdAfx.h"
@@ -690,6 +691,10 @@ bool CGraphicDevice::__CreateDX11Device(HWND hWnd, int iWidth, int iHeight,
   ms_pPostProcess = new CDX11PostProcess();
   ms_pPostProcess->Initialize(ms_pD3D11Device, ms_pD3D11Context, ms_pSwapChain,
                               iWidth, iHeight);
+
+  // Initialize shadow map (Phase 2B)
+  ms_pShadowMap = new CDX11ShadowMap();
+  ms_pShadowMap->Initialize(ms_pD3D11Device, ms_pD3D11Context);
 
   return true;
 }
