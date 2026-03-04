@@ -1116,12 +1116,31 @@ bool CStateManager::MirrorDX9VB(LPDIRECT3DVERTEXBUFFER9 pVB, UINT stride,
   if (!pVB || stride == 0 || vertexCount == 0)
     return false;
 
+  // CRITICAL: Check buffer pool before locking. D3DPOOL_DEFAULT buffers are
+  // GPU-only and Lock() can crash the driver instead of returning FAILED.
+  D3DVERTEXBUFFER_DESC vbDesc;
+  if (FAILED(pVB->GetDesc(&vbDesc)))
+    return false;
+  if (vbDesc.Pool == D3DPOOL_DEFAULT && !(vbDesc.Usage & D3DUSAGE_DYNAMIC))
+    return false; // Can't safely lock GPU-only static buffers
+
   UINT offsetBytes = startVertex * stride;
   UINT sizeBytes = vertexCount * stride;
 
-  void *pData = nullptr;
-  if (FAILED(pVB->Lock(offsetBytes, sizeBytes, &pData, D3DLOCK_READONLY)))
+  // Clamp to actual buffer size
+  if (offsetBytes + sizeBytes > vbDesc.Size)
+    sizeBytes = (vbDesc.Size > offsetBytes) ? (vbDesc.Size - offsetBytes) : 0;
+  if (sizeBytes == 0)
     return false;
+
+  void *pData = nullptr;
+  DWORD lockFlags = D3DLOCK_READONLY | D3DLOCK_NOSYSLOCK;
+  if (FAILED(pVB->Lock(offsetBytes, sizeBytes, &pData, lockFlags)))
+    return false;
+  if (!pData) {
+    pVB->Unlock();
+    return false;
+  }
 
   bool ok = UploadDX11VB(pData, sizeBytes, stride);
   pVB->Unlock();
@@ -1133,16 +1152,31 @@ bool CStateManager::MirrorDX9IB(LPDIRECT3DINDEXBUFFER9 pIB, UINT startIndex,
   if (!pIB || indexCount == 0)
     return false;
 
-  // Get index buffer format
+  // CRITICAL: Check buffer pool before locking
   D3DINDEXBUFFER_DESC ibDesc;
-  pIB->GetDesc(&ibDesc);
+  if (FAILED(pIB->GetDesc(&ibDesc)))
+    return false;
+  if (ibDesc.Pool == D3DPOOL_DEFAULT && !(ibDesc.Usage & D3DUSAGE_DYNAMIC))
+    return false; // Can't safely lock GPU-only static buffers
+
   UINT indexSize = (ibDesc.Format == D3DFMT_INDEX32) ? 4 : 2;
   UINT offsetBytes = startIndex * indexSize;
   UINT sizeBytes = indexCount * indexSize;
 
-  void *pData = nullptr;
-  if (FAILED(pIB->Lock(offsetBytes, sizeBytes, &pData, D3DLOCK_READONLY)))
+  // Clamp to actual buffer size
+  if (offsetBytes + sizeBytes > ibDesc.Size)
+    sizeBytes = (ibDesc.Size > offsetBytes) ? (ibDesc.Size - offsetBytes) : 0;
+  if (sizeBytes == 0)
     return false;
+
+  void *pData = nullptr;
+  DWORD lockFlags = D3DLOCK_READONLY | D3DLOCK_NOSYSLOCK;
+  if (FAILED(pIB->Lock(offsetBytes, sizeBytes, &pData, lockFlags)))
+    return false;
+  if (!pData) {
+    pIB->Unlock();
+    return false;
+  }
 
   bool ok = false;
   if (!EnsureDX11IB(sizeBytes))
