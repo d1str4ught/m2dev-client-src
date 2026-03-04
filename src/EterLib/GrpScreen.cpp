@@ -701,20 +701,16 @@ bool CScreen::Begin() {
     ms_pD3D11Context->ClearDepthStencilView(
         ms_pDepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
-    // Shadow map: update light matrix and bind shadow resources
-    if (ms_pShadowMap && ms_pShadowMap->IsInitialized()) {
-      float camPos[3] = {ms_matView._41, ms_matView._42, ms_matView._43};
-      ms_pShadowMap->UpdateLightMatrix(camPos, 500.0f);
-
-      ID3D11ShaderResourceView *pShadowSRV = ms_pShadowMap->GetShadowSRV();
-      ms_pD3D11Context->PSSetShaderResources(2, 1, &pShadowSRV);
-
-      ID3D11SamplerState *pShadowSampler = ms_pShadowMap->GetShadowSampler();
-      ms_pD3D11Context->PSSetSamplers(1, 1, &pShadowSampler);
-
-      ID3D11Buffer *pShadowCB = ms_pShadowMap->GetShadowCB();
-      ms_pD3D11Context->VSSetConstantBuffers(2, 1, &pShadowCB);
-    }
+    // CRITICAL: Set DX11 viewport — without this, DX11 has no default viewport
+    // and all draws render to 0x0 area (= black screen)
+    D3D11_VIEWPORT vp = {};
+    vp.Width = (FLOAT)ms_d3dPresentParameter.BackBufferWidth;
+    vp.Height = (FLOAT)ms_d3dPresentParameter.BackBufferHeight;
+    vp.MinDepth = 0.0f;
+    vp.MaxDepth = 1.0f;
+    vp.TopLeftX = 0.0f;
+    vp.TopLeftY = 0.0f;
+    ms_pD3D11Context->RSSetViewports(1, &vp);
   }
 
   return true;
@@ -791,7 +787,7 @@ void CScreen::Show(HWND hWnd) {
     if (pInputSRV)
       ms_pPostProcess->ApplyAndPresent(pInputSRV);
   } else {
-    // Fallback: DX9-only present (no DX11 post-processing available)
+    // DX9-only present (when DX11 post-processing is not available)
     if (g_isBrowserMode) {
       RECT rcTop = {static_cast<long>(0), static_cast<long>(0),
                     static_cast<long>(ms_d3dPresentParameter.BackBufferWidth),
