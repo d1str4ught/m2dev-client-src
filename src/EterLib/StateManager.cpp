@@ -800,29 +800,81 @@ HRESULT CStateManager::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType,
   ++m_iDrawCallCount;
 #endif
 
-  // DX11: Apply any dirty state objects before draw
-  m_DX11StateCache.ApplyState();
-
-  // DX11: Update transforms (shader variant already selected by SetFVF)
-  if (m_bDX11TransformDirty) {
-    m_DX11ShaderManager.UpdateTransforms(
-        (const float *)&m_CurrentState.m_Matrices[D3DTS_WORLD],
-        (const float *)&m_CurrentState.m_Matrices[D3DTS_VIEW],
-        (const float *)&m_CurrentState.m_Matrices[D3DTS_PROJECTION]);
-    m_bDX11TransformDirty = false;
-  }
-
-  // DX11: Mirror DX9 VB to DX11 and draw
+  // DX11 pipeline — only run when DX11 is enabled and context exists
   if (CGraphicBase::ms_bDX11PostProcessEnabled &&
       CGraphicBase::ms_pD3D11Context) {
+
+    // Crash log: write step to file (survives crash)
+    static int s_iLogCount = 0;
+    static bool s_bLogEnabled = true;
+    if (s_bLogEnabled && s_iLogCount < 20) {
+      FILE *fp = fopen("dx11_crash.log", "a");
+      if (fp) {
+        fprintf(fp, "DP step=1 ApplyState count=%d\n", s_iLogCount);
+        fflush(fp);
+        fclose(fp);
+      }
+    }
+
+    m_DX11StateCache.ApplyState();
+
+    if (s_bLogEnabled && s_iLogCount < 20) {
+      FILE *fp = fopen("dx11_crash.log", "a");
+      if (fp) {
+        fprintf(fp, "DP step=2 UpdateTransforms\n");
+        fflush(fp);
+        fclose(fp);
+      }
+    }
+
+    if (m_bDX11TransformDirty) {
+      m_DX11ShaderManager.UpdateTransforms(
+          (const float *)&m_CurrentState.m_Matrices[D3DTS_WORLD],
+          (const float *)&m_CurrentState.m_Matrices[D3DTS_VIEW],
+          (const float *)&m_CurrentState.m_Matrices[D3DTS_PROJECTION]);
+      m_bDX11TransformDirty = false;
+    }
+
+    if (s_bLogEnabled && s_iLogCount < 20) {
+      FILE *fp = fopen("dx11_crash.log", "a");
+      if (fp) {
+        fprintf(fp, "DP step=3 MirrorVB\n");
+        fflush(fp);
+        fclose(fp);
+      }
+    }
+
     LPDIRECT3DVERTEXBUFFER9 pVB = m_CurrentState.m_StreamData[0].m_lpStreamData;
     UINT stride = m_CurrentState.m_StreamData[0].m_Stride;
     UINT vertexCount = PrimCountToVertexCount(PrimitiveType, PrimitiveCount);
     if (pVB && stride > 0 &&
         MirrorDX9VB(pVB, stride, StartVertex, vertexCount)) {
+
+      if (s_bLogEnabled && s_iLogCount < 20) {
+        FILE *fp = fopen("dx11_crash.log", "a");
+        if (fp) {
+          fprintf(fp, "DP step=4 Draw verts=%u stride=%u\n", vertexCount,
+                  stride);
+          fflush(fp);
+          fclose(fp);
+        }
+      }
+
       CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
           MapTopology(PrimitiveType));
       CGraphicBase::ms_pD3D11Context->Draw(vertexCount, 0);
+    }
+
+    if (s_bLogEnabled && s_iLogCount < 20) {
+      FILE *fp = fopen("dx11_crash.log", "a");
+      if (fp) {
+        fprintf(fp, "DP step=5 DONE\n");
+        fflush(fp);
+        fclose(fp);
+      }
+      s_iLogCount++;
+      if (s_iLogCount >= 20)
+        s_bLogEnabled = false;
     }
   }
 
@@ -892,15 +944,21 @@ HRESULT CStateManager::DrawPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType,
   ++m_iDrawCallCount;
 #endif
 
-  // DX11: Apply any dirty state objects before draw
-  m_DX11StateCache.ApplyState();
-
   m_CurrentState.m_StreamData[0] = NULL;
 
-  // DX11: Upload inline vertex data and draw
+  // DX11 pipeline — all inside guard
   if (CGraphicBase::ms_bDX11PostProcessEnabled &&
       CGraphicBase::ms_pD3D11Context && pVertexStreamZeroData &&
       VertexStreamZeroStride > 0) {
+    static int s_upLog = 0;
+    if (s_upLog < 5) {
+      FILE *fp = fopen("dx11_crash.log", "a");
+      if (fp) {
+        fprintf(fp, "DPUP step=1 count=%d\n", s_upLog);
+        fflush(fp);
+        fclose(fp);
+      }
+    }
     m_DX11StateCache.ApplyState();
     if (m_bDX11TransformDirty) {
       m_DX11ShaderManager.UpdateTransforms(
@@ -909,12 +967,29 @@ HRESULT CStateManager::DrawPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType,
           (const float *)&m_CurrentState.m_Matrices[D3DTS_PROJECTION]);
       m_bDX11TransformDirty = false;
     }
+    if (s_upLog < 5) {
+      FILE *fp = fopen("dx11_crash.log", "a");
+      if (fp) {
+        fprintf(fp, "DPUP step=2 upload\n");
+        fflush(fp);
+        fclose(fp);
+      }
+    }
     UINT vertexCount = PrimCountToVertexCount(PrimitiveType, PrimitiveCount);
     UINT dataSize = vertexCount * VertexStreamZeroStride;
     if (UploadDX11VB(pVertexStreamZeroData, dataSize, VertexStreamZeroStride)) {
       CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
           MapTopology(PrimitiveType));
       CGraphicBase::ms_pD3D11Context->Draw(vertexCount, 0);
+    }
+    if (s_upLog < 5) {
+      FILE *fp = fopen("dx11_crash.log", "a");
+      if (fp) {
+        fprintf(fp, "DPUP step=3 DONE\n");
+        fflush(fp);
+        fclose(fp);
+      }
+      s_upLog++;
     }
   }
 
@@ -930,21 +1005,34 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
   ++m_iDrawCallCount;
 #endif
 
-  // DX11: Apply state + emit indexed draw
-  m_DX11StateCache.ApplyState();
-
-  // DX11: Update transforms if dirty
-  if (m_bDX11TransformDirty) {
-    m_DX11ShaderManager.UpdateTransforms(
-        (const float *)&m_CurrentState.m_Matrices[D3DTS_WORLD],
-        (const float *)&m_CurrentState.m_Matrices[D3DTS_VIEW],
-        (const float *)&m_CurrentState.m_Matrices[D3DTS_PROJECTION]);
-    m_bDX11TransformDirty = false;
-  }
-
-  // DX11: Emit indexed draw (mirror DX9 VB+IB)
+  // DX11 pipeline — all inside guard
   if (CGraphicBase::ms_bDX11PostProcessEnabled &&
       CGraphicBase::ms_pD3D11Context) {
+    static int s_diLog = 0;
+    if (s_diLog < 5) {
+      FILE *fp = fopen("dx11_crash.log", "a");
+      if (fp) {
+        fprintf(fp, "DIP1 step=1 count=%d\n", s_diLog);
+        fflush(fp);
+        fclose(fp);
+      }
+    }
+    m_DX11StateCache.ApplyState();
+    if (m_bDX11TransformDirty) {
+      m_DX11ShaderManager.UpdateTransforms(
+          (const float *)&m_CurrentState.m_Matrices[D3DTS_WORLD],
+          (const float *)&m_CurrentState.m_Matrices[D3DTS_VIEW],
+          (const float *)&m_CurrentState.m_Matrices[D3DTS_PROJECTION]);
+      m_bDX11TransformDirty = false;
+    }
+    if (s_diLog < 5) {
+      FILE *fp = fopen("dx11_crash.log", "a");
+      if (fp) {
+        fprintf(fp, "DIP1 step=2 mirror\n");
+        fflush(fp);
+        fclose(fp);
+      }
+    }
     LPDIRECT3DVERTEXBUFFER9 pVB = m_CurrentState.m_StreamData[0].m_lpStreamData;
     LPDIRECT3DINDEXBUFFER9 pIB = m_CurrentState.m_IndexData.m_lpIndexData;
     UINT stride = m_CurrentState.m_StreamData[0].m_Stride;
@@ -954,6 +1042,15 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
       CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
           MapTopology(PrimitiveType));
       CGraphicBase::ms_pD3D11Context->DrawIndexed(indexCount, 0, 0);
+    }
+    if (s_diLog < 5) {
+      FILE *fp = fopen("dx11_crash.log", "a");
+      if (fp) {
+        fprintf(fp, "DIP1 step=3 DONE\n");
+        fflush(fp);
+        fclose(fp);
+      }
+      s_diLog++;
     }
   }
 
@@ -969,20 +1066,34 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
   ++m_iDrawCallCount;
 #endif
 
-  // DX11: Apply state + emit indexed draw with base vertex
-  m_DX11StateCache.ApplyState();
-
-  if (m_bDX11TransformDirty) {
-    m_DX11ShaderManager.UpdateTransforms(
-        (const float *)&m_CurrentState.m_Matrices[D3DTS_WORLD],
-        (const float *)&m_CurrentState.m_Matrices[D3DTS_VIEW],
-        (const float *)&m_CurrentState.m_Matrices[D3DTS_PROJECTION]);
-    m_bDX11TransformDirty = false;
-  }
-
-  // DX11: Emit indexed draw with base vertex (mirror DX9 VB+IB)
+  // DX11 pipeline — all inside guard
   if (CGraphicBase::ms_bDX11PostProcessEnabled &&
       CGraphicBase::ms_pD3D11Context) {
+    static int s_di2Log = 0;
+    if (s_di2Log < 5) {
+      FILE *fp = fopen("dx11_crash.log", "a");
+      if (fp) {
+        fprintf(fp, "DIP2 step=1 count=%d\n", s_di2Log);
+        fflush(fp);
+        fclose(fp);
+      }
+    }
+    m_DX11StateCache.ApplyState();
+    if (m_bDX11TransformDirty) {
+      m_DX11ShaderManager.UpdateTransforms(
+          (const float *)&m_CurrentState.m_Matrices[D3DTS_WORLD],
+          (const float *)&m_CurrentState.m_Matrices[D3DTS_VIEW],
+          (const float *)&m_CurrentState.m_Matrices[D3DTS_PROJECTION]);
+      m_bDX11TransformDirty = false;
+    }
+    if (s_di2Log < 5) {
+      FILE *fp = fopen("dx11_crash.log", "a");
+      if (fp) {
+        fprintf(fp, "DIP2 step=2 mirror\n");
+        fflush(fp);
+        fclose(fp);
+      }
+    }
     LPDIRECT3DVERTEXBUFFER9 pVB = m_CurrentState.m_StreamData[0].m_lpStreamData;
     LPDIRECT3DINDEXBUFFER9 pIB = m_CurrentState.m_IndexData.m_lpIndexData;
     UINT stride = m_CurrentState.m_StreamData[0].m_Stride;
@@ -993,6 +1104,15 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
           MapTopology(PrimitiveType));
       CGraphicBase::ms_pD3D11Context->DrawIndexed(indexCount, 0,
                                                   baseVertexIndex);
+    }
+    if (s_di2Log < 5) {
+      FILE *fp = fopen("dx11_crash.log", "a");
+      if (fp) {
+        fprintf(fp, "DIP2 step=3 DONE\n");
+        fflush(fp);
+        fclose(fp);
+      }
+      s_di2Log++;
     }
   }
 

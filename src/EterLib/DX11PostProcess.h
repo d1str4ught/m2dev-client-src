@@ -83,4 +83,7 @@ private:
   // Constant buffer for post-process params
   ID3D11Buffer *m_pCBPostProcess;
   ID3D11SamplerState *m_pSamplerLinear;
+
+  // Cached swap chain back buffer RTV (created once, not every frame)
+  ID3D11RenderTargetView *m_pBackBufferRTV;
 };

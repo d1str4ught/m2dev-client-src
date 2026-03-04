@@ -155,13 +155,13 @@ static bool CompileShaderFromString(const char *szSource, const char *szEntry,
 CDX11PostProcess::CDX11PostProcess()
     : m_pDevice(nullptr), m_pContext(nullptr), m_pSwapChain(nullptr),
       m_bInitialized(false), m_iWidth(0), m_iHeight(0), m_bBloomEnabled(true),
-      m_fBloomIntensity(0.4f), m_fBloomThreshold(0.8f),
+      m_fBloomIntensity(0.35f), m_fBloomThreshold(0.85f),
       m_pFullscreenVS(nullptr), m_pBloomExtractPS(nullptr),
       m_pBloomBlurPS(nullptr), m_pCompositePS(nullptr), m_pBloomRT_Tex(nullptr),
       m_pBloomRT_RTV(nullptr), m_pBloomRT_SRV(nullptr),
       m_pBloomBlurRT_Tex(nullptr), m_pBloomBlurRT_RTV(nullptr),
       m_pBloomBlurRT_SRV(nullptr), m_pCBPostProcess(nullptr),
-      m_pSamplerLinear(nullptr) {}
+      m_pSamplerLinear(nullptr), m_pBackBufferRTV(nullptr) {}
 
 CDX11PostProcess::~CDX11PostProcess() { Shutdown(); }
 
@@ -185,13 +185,30 @@ bool CDX11PostProcess::Initialize(ID3D11Device *pDevice,
     return false;
   }
 
+  // Create cached back buffer RTV (reused every frame)
+  ID3D11Texture2D *pBackBuffer = nullptr;
+  HRESULT hr = m_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D),
+                                       (void **)&pBackBuffer);
+  if (FAILED(hr) || !pBackBuffer)
+    return false;
+  hr = m_pDevice->CreateRenderTargetView(pBackBuffer, nullptr,
+                                         &m_pBackBufferRTV);
+  pBackBuffer->Release();
+  if (FAILED(hr))
+    return false;
+
   m_bInitialized = true;
-  OutputDebugStringA("[DX11 PostProcess] Initialized OK — bloom enabled\n");
+  OutputDebugStringA("[DX11] Post-process initialized\n");
   return true;
 }
 
 void CDX11PostProcess::Shutdown() {
   ReleaseResources();
+
+  if (m_pBackBufferRTV) {
+    m_pBackBufferRTV->Release();
+    m_pBackBufferRTV = nullptr;
+  }
 
   if (m_pFullscreenVS) {
     m_pFullscreenVS->Release();
@@ -405,16 +422,9 @@ void CDX11PostProcess::ApplyAndPresent(ID3D11ShaderResourceView *pSceneSRV) {
     m_pContext->PSSetShaderResources(0, 1, &nullSRV);
   }
 
-  // Pass 3: Composite — render to swap chain back buffer
-  // Get the swap chain's back buffer RTV
-  ID3D11Texture2D *pBackBuffer = nullptr;
-  m_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void **)&pBackBuffer);
-  ID3D11RenderTargetView *pBackBufferRTV = nullptr;
-  m_pDevice->CreateRenderTargetView(pBackBuffer, nullptr, &pBackBufferRTV);
-  pBackBuffer->Release();
-
+  // Pass 3: Composite — render to cached swap chain back buffer RTV
   D3D11_VIEWPORT fullVP = {0, 0, (float)m_iWidth, (float)m_iHeight, 0.0f, 1.0f};
-  m_pContext->OMSetRenderTargets(1, &pBackBufferRTV, nullptr);
+  m_pContext->OMSetRenderTargets(1, &m_pBackBufferRTV, nullptr);
   m_pContext->RSSetViewports(1, &fullVP);
 
   if (m_bBloomEnabled) {
@@ -433,7 +443,6 @@ void CDX11PostProcess::ApplyAndPresent(ID3D11ShaderResourceView *pSceneSRV) {
   // Cleanup
   ID3D11ShaderResourceView *nullSRVs[2] = {nullptr, nullptr};
   m_pContext->PSSetShaderResources(0, 2, nullSRVs);
-  pBackBufferRTV->Release();
 
   // Present via DX11 swap chain
   m_pSwapChain->Present(0, 0);

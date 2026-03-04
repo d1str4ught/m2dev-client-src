@@ -742,13 +742,30 @@ void CScreen::Show(HWND hWnd) {
 
   // DX11: Use native scene RT if available, otherwise fall back to DX9 copy
   if (bDX11Active) {
+    static int s_showLog = 0;
     ID3D11ShaderResourceView *pInputSRV = nullptr;
 
     if (ms_pSceneSRV) {
+      if (s_showLog < 3) {
+        FILE *fp = fopen("dx11_crash.log", "a");
+        if (fp) {
+          fprintf(fp, "SHOW step=1 unbind RT count=%d\n", s_showLog);
+          fflush(fp);
+          fclose(fp);
+        }
+      }
       // DX11 native: unbind scene RT before reading as SRV
       ID3D11RenderTargetView *nullRTV = nullptr;
       ms_pD3D11Context->OMSetRenderTargets(1, &nullRTV, nullptr);
       pInputSRV = ms_pSceneSRV;
+      if (s_showLog < 3) {
+        FILE *fp = fopen("dx11_crash.log", "a");
+        if (fp) {
+          fprintf(fp, "SHOW step=2 pInputSRV=%p\n", pInputSRV);
+          fflush(fp);
+          fclose(fp);
+        }
+      }
     } else {
       // Fallback: Copy DX9 back buffer to shared texture
       IDirect3DSurface9 *pBackBuffer = nullptr;
@@ -780,8 +797,26 @@ void CScreen::Show(HWND hWnd) {
     }
 
     // Present via DX11 post-processing
-    if (pInputSRV)
+    if (pInputSRV) {
+      if (s_showLog < 3) {
+        FILE *fp = fopen("dx11_crash.log", "a");
+        if (fp) {
+          fprintf(fp, "SHOW step=3 ApplyAndPresent SRV=%p\n", pInputSRV);
+          fflush(fp);
+          fclose(fp);
+        }
+      }
       ms_pPostProcess->ApplyAndPresent(pInputSRV);
+      if (s_showLog < 3) {
+        FILE *fp = fopen("dx11_crash.log", "a");
+        if (fp) {
+          fprintf(fp, "SHOW step=4 DONE\n");
+          fflush(fp);
+          fclose(fp);
+        }
+        s_showLog++;
+      }
+    }
   } else {
     // DX9-only present (when DX11 post-processing is not available)
     if (g_isBrowserMode) {
