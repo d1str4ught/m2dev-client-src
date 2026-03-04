@@ -691,27 +691,25 @@ bool CScreen::Begin() {
     return false;
   }
 
-  // DX11: Bind scene render target + depth at frame start (Phase 2A+2C)
+  // DX11 scene RT binding + viewport DISABLED
+  // Native DX11 rendering needs full VB/IB format translation per FVF code
+  // which is not yet implemented. Using DX9->DX11 copy path instead.
+#if 0
   if (ms_bDX11PostProcessEnabled && ms_pD3D11Context && ms_pSceneRTV &&
       ms_pDepthStencilView) {
-    ms_pD3D11Context->OMSetRenderTargets(1, &ms_pSceneRTV,
-                                         ms_pDepthStencilView);
+    ms_pD3D11Context->OMSetRenderTargets(1, &ms_pSceneRTV, ms_pDepthStencilView);
     float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
     ms_pD3D11Context->ClearRenderTargetView(ms_pSceneRTV, clearColor);
     ms_pD3D11Context->ClearDepthStencilView(
         ms_pDepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-
-    // CRITICAL: Set DX11 viewport — without this, DX11 has no default viewport
-    // and all draws render to 0x0 area (= black screen)
     D3D11_VIEWPORT vp = {};
     vp.Width = (FLOAT)ms_d3dPresentParameter.BackBufferWidth;
     vp.Height = (FLOAT)ms_d3dPresentParameter.BackBufferHeight;
     vp.MinDepth = 0.0f;
     vp.MaxDepth = 1.0f;
-    vp.TopLeftX = 0.0f;
-    vp.TopLeftY = 0.0f;
     ms_pD3D11Context->RSSetViewports(1, &vp);
   }
+#endif
 
   return true;
 }
@@ -724,10 +722,10 @@ extern RECT g_rcBrowser;
 void CScreen::Show(HWND hWnd) {
   assert(ms_lpd3dDevice != NULL);
 
-  // DX11: Use scene RT if available (Phase 2A+2C), fallback to DX9 copy
+  // Use DX9->DX11 copy path (proven stable)
   bool bDX11Active = ms_bDX11PostProcessEnabled && ms_pPostProcess &&
-                     ms_pPostProcess->IsInitialized() &&
-                     (ms_pSceneSRV || (ms_pSharedTexture && ms_pSharedSRV));
+                     ms_pPostProcess->IsInitialized() && ms_pSharedTexture &&
+                     ms_pSharedSRV;
 
   // Debug: Log DX11 post-process status on first frame
   static bool s_bLoggedOnce = false;
@@ -747,13 +745,8 @@ void CScreen::Show(HWND hWnd) {
   if (bDX11Active) {
     ID3D11ShaderResourceView *pInputSRV = nullptr;
 
-    if (ms_pSceneSRV) {
-      // Phase 2A+2C: DX11 rendered directly to scene RT — use it
-      // Unbind scene RT before reading as SRV
-      ID3D11RenderTargetView *nullRTV = nullptr;
-      ms_pD3D11Context->OMSetRenderTargets(1, &nullRTV, nullptr);
-      pInputSRV = ms_pSceneSRV;
-    } else {
+    // DX9->DX11 copy path (stable)
+    if (true) {
       // Fallback: Copy DX9 back buffer to shared texture
       IDirect3DSurface9 *pBackBuffer = nullptr;
       if (SUCCEEDED(ms_lpd3dDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO,
