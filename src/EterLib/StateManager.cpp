@@ -812,8 +812,7 @@ HRESULT CStateManager::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType,
     m_bDX11TransformDirty = false;
   }
 
-  // DX11 draw disabled — buffer mirroring crashes on D3DPOOL_DEFAULT VBs
-#if 0
+  // DX11: Mirror DX9 VB to DX11 and draw
   if (CGraphicBase::ms_bDX11PostProcessEnabled &&
       CGraphicBase::ms_pD3D11Context) {
     LPDIRECT3DVERTEXBUFFER9 pVB = m_CurrentState.m_StreamData[0].m_lpStreamData;
@@ -826,7 +825,6 @@ HRESULT CStateManager::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType,
       CGraphicBase::ms_pD3D11Context->Draw(vertexCount, 0);
     }
   }
-#endif
 
   return (
       m_lpD3DDev->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount));
@@ -899,8 +897,7 @@ HRESULT CStateManager::DrawPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType,
 
   m_CurrentState.m_StreamData[0] = NULL;
 
-  // DX11 draw disabled — buffer mirroring crashes
-#if 0
+  // DX11: Upload inline vertex data and draw
   if (CGraphicBase::ms_bDX11PostProcessEnabled &&
       CGraphicBase::ms_pD3D11Context && pVertexStreamZeroData &&
       VertexStreamZeroStride > 0) {
@@ -914,14 +911,12 @@ HRESULT CStateManager::DrawPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType,
     }
     UINT vertexCount = PrimCountToVertexCount(PrimitiveType, PrimitiveCount);
     UINT dataSize = vertexCount * VertexStreamZeroStride;
-    if (UploadDX11VB(pVertexStreamZeroData, dataSize,
-                     VertexStreamZeroStride)) {
+    if (UploadDX11VB(pVertexStreamZeroData, dataSize, VertexStreamZeroStride)) {
       CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
           MapTopology(PrimitiveType));
       CGraphicBase::ms_pD3D11Context->Draw(vertexCount, 0);
     }
   }
-#endif
 
   return (m_lpD3DDev->DrawPrimitiveUP(PrimitiveType, PrimitiveCount,
                                       pVertexStreamZeroData,
@@ -948,7 +943,6 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
   }
 
   // DX11: Emit indexed draw (mirror DX9 VB+IB)
-#if 0
   if (CGraphicBase::ms_bDX11PostProcessEnabled &&
       CGraphicBase::ms_pD3D11Context) {
     LPDIRECT3DVERTEXBUFFER9 pVB = m_CurrentState.m_StreamData[0].m_lpStreamData;
@@ -962,7 +956,6 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
       CGraphicBase::ms_pD3D11Context->DrawIndexed(indexCount, 0, 0);
     }
   }
-#endif
 
   return (m_lpD3DDev->DrawIndexedPrimitive(PrimitiveType, 0, minIndex,
                                            NumVertices, startIndex, primCount));
@@ -988,7 +981,6 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
   }
 
   // DX11: Emit indexed draw with base vertex (mirror DX9 VB+IB)
-#if 0
   if (CGraphicBase::ms_bDX11PostProcessEnabled &&
       CGraphicBase::ms_pD3D11Context) {
     LPDIRECT3DVERTEXBUFFER9 pVB = m_CurrentState.m_StreamData[0].m_lpStreamData;
@@ -1003,7 +995,6 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
                                                   baseVertexIndex);
     }
   }
-#endif
 
   return (m_lpD3DDev->DrawIndexedPrimitive(PrimitiveType, baseVertexIndex,
                                            minIndex, NumVertices, startIndex,
