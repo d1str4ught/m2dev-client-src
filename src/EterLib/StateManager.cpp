@@ -806,7 +806,8 @@ HRESULT CStateManager::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType,
     m_bDX11TransformDirty = false;
   }
 
-  // DX11: Emit draw to scene RT (Phase 2A)
+  // DX11: Draw emission disabled — needs shared VB/IB with DX11
+#if 0
   if (CGraphicBase::ms_bDX11PostProcessEnabled &&
       CGraphicBase::ms_pD3D11Context) {
     CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
@@ -814,6 +815,7 @@ HRESULT CStateManager::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType,
     UINT vertexCount = PrimCountToVertexCount(PrimitiveType, PrimitiveCount);
     CGraphicBase::ms_pD3D11Context->Draw(vertexCount, StartVertex);
   }
+#endif
 
   return (
       m_lpD3DDev->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount));
@@ -909,7 +911,8 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
     m_bDX11TransformDirty = false;
   }
 
-  // DX11: Emit indexed draw to scene RT (Phase 2A)
+  // DX11: Draw emission disabled — needs shared VB/IB with DX11
+#if 0
   if (CGraphicBase::ms_bDX11PostProcessEnabled &&
       CGraphicBase::ms_pD3D11Context) {
     CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
@@ -917,6 +920,7 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
     UINT indexCount = PrimCountToIndexCount(PrimitiveType, primCount);
     CGraphicBase::ms_pD3D11Context->DrawIndexed(indexCount, startIndex, 0);
   }
+#endif
 
   return (m_lpD3DDev->DrawIndexedPrimitive(PrimitiveType, 0, minIndex,
                                            NumVertices, startIndex, primCount));
@@ -941,7 +945,8 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
     m_bDX11TransformDirty = false;
   }
 
-  // DX11: Emit indexed draw with base vertex to scene RT (Phase 2A)
+  // DX11: Draw emission disabled — needs shared VB/IB with DX11
+#if 0
   if (CGraphicBase::ms_bDX11PostProcessEnabled &&
       CGraphicBase::ms_pD3D11Context) {
     CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
@@ -950,6 +955,7 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
     CGraphicBase::ms_pD3D11Context->DrawIndexed(indexCount, startIndex,
                                                 baseVertexIndex);
   }
+#endif
 
   return (m_lpD3DDev->DrawIndexedPrimitive(PrimitiveType, baseVertexIndex,
                                            minIndex, NumVertices, startIndex,

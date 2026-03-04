@@ -691,7 +691,11 @@ bool CScreen::Begin() {
     return false;
   }
 
-  // DX11: Bind scene render target + depth at frame start
+  // DX11: Scene RT binding DISABLED — DX11 draw emission needs shared
+  // vertex/index buffers (currently DX9-only). Without this, the scene RT
+  // stays black. Uncomment when DX11 vertex buffer sharing is implemented.
+  // For now, we fall back to the DX9→DX11 copy path in Show().
+#if 0
   if (ms_bDX11PostProcessEnabled && ms_pD3D11Context && ms_pSceneRTV &&
       ms_pDepthStencilView) {
     ms_pD3D11Context->OMSetRenderTargets(1, &ms_pSceneRTV,
@@ -703,23 +707,20 @@ bool CScreen::Begin() {
 
     // Shadow map: update light matrix and bind shadow resources
     if (ms_pShadowMap && ms_pShadowMap->IsInitialized()) {
-      // Camera position for shadow frustum centering
       float camPos[3] = {ms_matView._41, ms_matView._42, ms_matView._43};
       ms_pShadowMap->UpdateLightMatrix(camPos, 500.0f);
 
-      // Bind shadow SRV at t2 for pixel shader
       ID3D11ShaderResourceView *pShadowSRV = ms_pShadowMap->GetShadowSRV();
       ms_pD3D11Context->PSSetShaderResources(2, 1, &pShadowSRV);
 
-      // Bind shadow comparison sampler at s1
       ID3D11SamplerState *pShadowSampler = ms_pShadowMap->GetShadowSampler();
       ms_pD3D11Context->PSSetSamplers(1, 1, &pShadowSampler);
 
-      // Bind shadow constant buffer at b2 for vertex shader
       ID3D11Buffer *pShadowCB = ms_pShadowMap->GetShadowCB();
       ms_pD3D11Context->VSSetConstantBuffers(2, 1, &pShadowCB);
     }
   }
+#endif
 
   return true;
 }
@@ -732,9 +733,11 @@ extern RECT g_rcBrowser;
 void CScreen::Show(HWND hWnd) {
   assert(ms_lpd3dDevice != NULL);
 
+  // Note: ms_pSceneSRV disabled (DX11 draws need shared VB/IB — not yet
+  // implemented)
   bool bDX11Active = ms_bDX11PostProcessEnabled && ms_pPostProcess &&
-                     ms_pPostProcess->IsInitialized() &&
-                     (ms_pSceneSRV || (ms_pSharedTexture && ms_pSharedSRV));
+                     ms_pPostProcess->IsInitialized() && ms_pSharedTexture &&
+                     ms_pSharedSRV;
 
   // Debug: Log DX11 post-process status on first frame
   static bool s_bLoggedOnce = false;
@@ -754,13 +757,9 @@ void CScreen::Show(HWND hWnd) {
   if (bDX11Active) {
     ID3D11ShaderResourceView *pInputSRV = nullptr;
 
-    if (ms_pSceneSRV) {
-      // Phase 2A: DX11 rendered directly to scene RT — use it
-      // Unbind scene RT before reading as SRV
-      ID3D11RenderTargetView *nullRTV = nullptr;
-      ms_pD3D11Context->OMSetRenderTargets(1, &nullRTV, nullptr);
-      pInputSRV = ms_pSceneSRV;
-    } else {
+    // Scene SRV path disabled — DX11 can't draw without shared VB/IB
+    // Always fall back to DX9 back buffer copy
+    if (false) {
       // Fallback: Copy DX9 back buffer to shared texture
       IDirect3DSurface9 *pBackBuffer = nullptr;
       if (SUCCEEDED(ms_lpd3dDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO,
