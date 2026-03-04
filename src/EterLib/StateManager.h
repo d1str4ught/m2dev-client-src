@@ -384,6 +384,21 @@ private:
   std::vector<CStreamData> m_StreamStack[STATEMANAGER_MAX_STREAMS];
   std::vector<CIndexData> m_IndexStack;
 
+  // DX11 dynamic buffer mirroring (Phase 2C)
+  ID3D11Buffer *m_pDX11DynVB; // Dynamic vertex buffer for mirroring
+  ID3D11Buffer *m_pDX11DynIB; // Dynamic index buffer for mirroring
+  UINT m_dwDX11DynVBSize;     // Current VB capacity in bytes
+  UINT m_dwDX11DynIBSize;     // Current IB capacity in bytes
+
+  bool EnsureDX11VB(UINT sizeBytes);
+  bool EnsureDX11IB(UINT sizeBytes);
+  bool UploadDX11VB(const void *pData, UINT sizeBytes, UINT stride);
+  bool UploadDX11IB(const void *pData, UINT sizeBytes);
+  bool MirrorDX9VB(LPDIRECT3DVERTEXBUFFER9 pVB, UINT stride, UINT startVertex,
+                   UINT vertexCount);
+  bool MirrorDX9IB(LPDIRECT3DINDEXBUFFER9 pIB, UINT startIndex,
+                   UINT indexCount);
+
 #ifdef _DEBUG
   // Saving Flag
   int m_iDrawCallCount;

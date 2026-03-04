@@ -691,11 +691,7 @@ bool CScreen::Begin() {
     return false;
   }
 
-  // DX11: Scene RT binding DISABLED — DX11 draw emission needs shared
-  // vertex/index buffers (currently DX9-only). Without this, the scene RT
-  // stays black. Uncomment when DX11 vertex buffer sharing is implemented.
-  // For now, we fall back to the DX9→DX11 copy path in Show().
-#if 0
+  // DX11: Bind scene render target + depth at frame start (Phase 2A+2C)
   if (ms_bDX11PostProcessEnabled && ms_pD3D11Context && ms_pSceneRTV &&
       ms_pDepthStencilView) {
     ms_pD3D11Context->OMSetRenderTargets(1, &ms_pSceneRTV,
@@ -720,7 +716,6 @@ bool CScreen::Begin() {
       ms_pD3D11Context->VSSetConstantBuffers(2, 1, &pShadowCB);
     }
   }
-#endif
 
   return true;
 }
@@ -733,11 +728,10 @@ extern RECT g_rcBrowser;
 void CScreen::Show(HWND hWnd) {
   assert(ms_lpd3dDevice != NULL);
 
-  // Note: ms_pSceneSRV disabled (DX11 draws need shared VB/IB — not yet
-  // implemented)
+  // DX11: Use scene RT if available (Phase 2A+2C), fallback to DX9 copy
   bool bDX11Active = ms_bDX11PostProcessEnabled && ms_pPostProcess &&
-                     ms_pPostProcess->IsInitialized() && ms_pSharedTexture &&
-                     ms_pSharedSRV;
+                     ms_pPostProcess->IsInitialized() &&
+                     (ms_pSceneSRV || (ms_pSharedTexture && ms_pSharedSRV));
 
   // Debug: Log DX11 post-process status on first frame
   static bool s_bLoggedOnce = false;
@@ -757,9 +751,13 @@ void CScreen::Show(HWND hWnd) {
   if (bDX11Active) {
     ID3D11ShaderResourceView *pInputSRV = nullptr;
 
-    // Scene SRV path disabled — DX11 can't draw without shared VB/IB
-    // Always fall back to DX9 back buffer copy
-    if (false) {
+    if (ms_pSceneSRV) {
+      // Phase 2A+2C: DX11 rendered directly to scene RT — use it
+      // Unbind scene RT before reading as SRV
+      ID3D11RenderTargetView *nullRTV = nullptr;
+      ms_pD3D11Context->OMSetRenderTargets(1, &nullRTV, nullptr);
+      pInputSRV = ms_pSceneSRV;
+    } else {
       // Fallback: Copy DX9 back buffer to shared texture
       IDirect3DSurface9 *pBackBuffer = nullptr;
       if (SUCCEEDED(ms_lpd3dDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO,

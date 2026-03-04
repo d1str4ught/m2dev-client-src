@@ -72,6 +72,12 @@ CStateManager::CStateManager(LPDIRECT3DDEVICE9EX lpDevice) : m_lpD3DDev(NULL) {
   }
   m_bDX11TransformDirty = true;
 
+  // DX11: Initialize dynamic buffer pointers (Phase 2C)
+  m_pDX11DynVB = nullptr;
+  m_pDX11DynIB = nullptr;
+  m_dwDX11DynVBSize = 0;
+  m_dwDX11DynIBSize = 0;
+
 #ifdef _DEBUG
   m_iDrawCallCount = 0;
   m_iLastDrawCallCount = 0;
@@ -806,16 +812,19 @@ HRESULT CStateManager::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType,
     m_bDX11TransformDirty = false;
   }
 
-  // DX11: Draw emission disabled — needs shared VB/IB with DX11
-#if 0
+  // DX11: Draw emission (Phase 2C — mirror DX9 VB to DX11)
   if (CGraphicBase::ms_bDX11PostProcessEnabled &&
       CGraphicBase::ms_pD3D11Context) {
-    CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
-        MapTopology(PrimitiveType));
+    LPDIRECT3DVERTEXBUFFER9 pVB = m_CurrentState.m_StreamData[0].m_lpStreamData;
+    UINT stride = m_CurrentState.m_StreamData[0].m_Stride;
     UINT vertexCount = PrimCountToVertexCount(PrimitiveType, PrimitiveCount);
-    CGraphicBase::ms_pD3D11Context->Draw(vertexCount, StartVertex);
+    if (pVB && stride > 0 &&
+        MirrorDX9VB(pVB, stride, StartVertex, vertexCount)) {
+      CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
+          MapTopology(PrimitiveType));
+      CGraphicBase::ms_pD3D11Context->Draw(vertexCount, 0);
+    }
   }
-#endif
 
   return (
       m_lpD3DDev->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount));
@@ -887,6 +896,28 @@ HRESULT CStateManager::DrawPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType,
   m_DX11StateCache.ApplyState();
 
   m_CurrentState.m_StreamData[0] = NULL;
+
+  // DX11: DrawPrimitiveUP — upload inline vertex data to DX11
+  if (CGraphicBase::ms_bDX11PostProcessEnabled &&
+      CGraphicBase::ms_pD3D11Context && pVertexStreamZeroData &&
+      VertexStreamZeroStride > 0) {
+    m_DX11StateCache.ApplyState();
+    if (m_bDX11TransformDirty) {
+      m_DX11ShaderManager.UpdateTransforms(
+          (const float *)&m_CurrentState.m_Matrices[D3DTS_WORLD],
+          (const float *)&m_CurrentState.m_Matrices[D3DTS_VIEW],
+          (const float *)&m_CurrentState.m_Matrices[D3DTS_PROJECTION]);
+      m_bDX11TransformDirty = false;
+    }
+    UINT vertexCount = PrimCountToVertexCount(PrimitiveType, PrimitiveCount);
+    UINT dataSize = vertexCount * VertexStreamZeroStride;
+    if (UploadDX11VB(pVertexStreamZeroData, dataSize, VertexStreamZeroStride)) {
+      CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
+          MapTopology(PrimitiveType));
+      CGraphicBase::ms_pD3D11Context->Draw(vertexCount, 0);
+    }
+  }
+
   return (m_lpD3DDev->DrawPrimitiveUP(PrimitiveType, PrimitiveCount,
                                       pVertexStreamZeroData,
                                       VertexStreamZeroStride));
@@ -911,16 +942,20 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
     m_bDX11TransformDirty = false;
   }
 
-  // DX11: Draw emission disabled — needs shared VB/IB with DX11
-#if 0
+  // DX11: Emit indexed draw (mirror DX9 VB+IB)
   if (CGraphicBase::ms_bDX11PostProcessEnabled &&
       CGraphicBase::ms_pD3D11Context) {
-    CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
-        MapTopology(PrimitiveType));
+    LPDIRECT3DVERTEXBUFFER9 pVB = m_CurrentState.m_StreamData[0].m_lpStreamData;
+    LPDIRECT3DINDEXBUFFER9 pIB = m_CurrentState.m_IndexData.m_lpIndexData;
+    UINT stride = m_CurrentState.m_StreamData[0].m_Stride;
     UINT indexCount = PrimCountToIndexCount(PrimitiveType, primCount);
-    CGraphicBase::ms_pD3D11Context->DrawIndexed(indexCount, startIndex, 0);
+    if (pVB && pIB && stride > 0 && MirrorDX9VB(pVB, stride, 0, NumVertices) &&
+        MirrorDX9IB(pIB, startIndex, indexCount)) {
+      CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
+          MapTopology(PrimitiveType));
+      CGraphicBase::ms_pD3D11Context->DrawIndexed(indexCount, 0, 0);
+    }
   }
-#endif
 
   return (m_lpD3DDev->DrawIndexedPrimitive(PrimitiveType, 0, minIndex,
                                            NumVertices, startIndex, primCount));
@@ -945,17 +980,21 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
     m_bDX11TransformDirty = false;
   }
 
-  // DX11: Draw emission disabled — needs shared VB/IB with DX11
-#if 0
+  // DX11: Emit indexed draw with base vertex (mirror DX9 VB+IB)
   if (CGraphicBase::ms_bDX11PostProcessEnabled &&
       CGraphicBase::ms_pD3D11Context) {
-    CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
-        MapTopology(PrimitiveType));
+    LPDIRECT3DVERTEXBUFFER9 pVB = m_CurrentState.m_StreamData[0].m_lpStreamData;
+    LPDIRECT3DINDEXBUFFER9 pIB = m_CurrentState.m_IndexData.m_lpIndexData;
+    UINT stride = m_CurrentState.m_StreamData[0].m_Stride;
     UINT indexCount = PrimCountToIndexCount(PrimitiveType, primCount);
-    CGraphicBase::ms_pD3D11Context->DrawIndexed(indexCount, startIndex,
-                                                baseVertexIndex);
+    if (pVB && pIB && stride > 0 && MirrorDX9VB(pVB, stride, 0, NumVertices) &&
+        MirrorDX9IB(pIB, startIndex, indexCount)) {
+      CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
+          MapTopology(PrimitiveType));
+      CGraphicBase::ms_pD3D11Context->DrawIndexed(indexCount, 0,
+                                                  baseVertexIndex);
+    }
   }
-#endif
 
   return (m_lpD3DDev->DrawIndexedPrimitive(PrimitiveType, baseVertexIndex,
                                            minIndex, NumVertices, startIndex,
@@ -976,6 +1015,158 @@ HRESULT CStateManager::DrawIndexedPrimitiveUP(
       PrimitiveType, MinVertexIndex, NumVertexIndices, PrimitiveCount,
       pIndexData, IndexDataFormat, pVertexStreamZeroData,
       VertexStreamZeroStride));
+}
+
+// ============================================================================
+// DX11 Dynamic Buffer Mirror Helpers (Phase 2C)
+// ============================================================================
+
+bool CStateManager::EnsureDX11VB(UINT sizeBytes) {
+  if (!CGraphicBase::ms_pD3D11Device)
+    return false;
+  if (m_pDX11DynVB && m_dwDX11DynVBSize >= sizeBytes)
+    return true;
+
+  // Release old buffer
+  if (m_pDX11DynVB) {
+    m_pDX11DynVB->Release();
+    m_pDX11DynVB = nullptr;
+  }
+
+  // Grow to at least 64KB or requested size
+  m_dwDX11DynVBSize = (sizeBytes < 65536) ? 65536 : sizeBytes;
+
+  D3D11_BUFFER_DESC desc = {};
+  desc.ByteWidth = m_dwDX11DynVBSize;
+  desc.Usage = D3D11_USAGE_DYNAMIC;
+  desc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+  desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+  return SUCCEEDED(CGraphicBase::ms_pD3D11Device->CreateBuffer(&desc, nullptr,
+                                                               &m_pDX11DynVB));
+}
+
+bool CStateManager::EnsureDX11IB(UINT sizeBytes) {
+  if (!CGraphicBase::ms_pD3D11Device)
+    return false;
+  if (m_pDX11DynIB && m_dwDX11DynIBSize >= sizeBytes)
+    return true;
+
+  if (m_pDX11DynIB) {
+    m_pDX11DynIB->Release();
+    m_pDX11DynIB = nullptr;
+  }
+
+  m_dwDX11DynIBSize = (sizeBytes < 65536) ? 65536 : sizeBytes;
+
+  D3D11_BUFFER_DESC desc = {};
+  desc.ByteWidth = m_dwDX11DynIBSize;
+  desc.Usage = D3D11_USAGE_DYNAMIC;
+  desc.BindFlags = D3D11_BIND_INDEX_BUFFER;
+  desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+  return SUCCEEDED(CGraphicBase::ms_pD3D11Device->CreateBuffer(&desc, nullptr,
+                                                               &m_pDX11DynIB));
+}
+
+bool CStateManager::UploadDX11VB(const void *pData, UINT sizeBytes,
+                                 UINT stride) {
+  if (!pData || sizeBytes == 0)
+    return false;
+  if (!EnsureDX11VB(sizeBytes))
+    return false;
+
+  D3D11_MAPPED_SUBRESOURCE mapped;
+  if (FAILED(CGraphicBase::ms_pD3D11Context->Map(
+          m_pDX11DynVB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+    return false;
+
+  memcpy(mapped.pData, pData, sizeBytes);
+  CGraphicBase::ms_pD3D11Context->Unmap(m_pDX11DynVB, 0);
+
+  // Bind to IA
+  UINT offset = 0;
+  CGraphicBase::ms_pD3D11Context->IASetVertexBuffers(0, 1, &m_pDX11DynVB,
+                                                     &stride, &offset);
+  return true;
+}
+
+bool CStateManager::UploadDX11IB(const void *pData, UINT sizeBytes) {
+  if (!pData || sizeBytes == 0)
+    return false;
+  if (!EnsureDX11IB(sizeBytes))
+    return false;
+
+  D3D11_MAPPED_SUBRESOURCE mapped;
+  if (FAILED(CGraphicBase::ms_pD3D11Context->Map(
+          m_pDX11DynIB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+    return false;
+
+  memcpy(mapped.pData, pData, sizeBytes);
+  CGraphicBase::ms_pD3D11Context->Unmap(m_pDX11DynIB, 0);
+
+  // Bind to IA (assume 16-bit indices — DX9 default)
+  CGraphicBase::ms_pD3D11Context->IASetIndexBuffer(m_pDX11DynIB,
+                                                   DXGI_FORMAT_R16_UINT, 0);
+  return true;
+}
+
+bool CStateManager::MirrorDX9VB(LPDIRECT3DVERTEXBUFFER9 pVB, UINT stride,
+                                UINT startVertex, UINT vertexCount) {
+  if (!pVB || stride == 0 || vertexCount == 0)
+    return false;
+
+  UINT offsetBytes = startVertex * stride;
+  UINT sizeBytes = vertexCount * stride;
+
+  void *pData = nullptr;
+  if (FAILED(pVB->Lock(offsetBytes, sizeBytes, &pData, D3DLOCK_READONLY)))
+    return false;
+
+  bool ok = UploadDX11VB(pData, sizeBytes, stride);
+  pVB->Unlock();
+  return ok;
+}
+
+bool CStateManager::MirrorDX9IB(LPDIRECT3DINDEXBUFFER9 pIB, UINT startIndex,
+                                UINT indexCount) {
+  if (!pIB || indexCount == 0)
+    return false;
+
+  // Get index buffer format
+  D3DINDEXBUFFER_DESC ibDesc;
+  pIB->GetDesc(&ibDesc);
+  UINT indexSize = (ibDesc.Format == D3DFMT_INDEX32) ? 4 : 2;
+  UINT offsetBytes = startIndex * indexSize;
+  UINT sizeBytes = indexCount * indexSize;
+
+  void *pData = nullptr;
+  if (FAILED(pIB->Lock(offsetBytes, sizeBytes, &pData, D3DLOCK_READONLY)))
+    return false;
+
+  bool ok = false;
+  if (!EnsureDX11IB(sizeBytes))
+    goto done;
+
+  {
+    D3D11_MAPPED_SUBRESOURCE mapped;
+    if (FAILED(CGraphicBase::ms_pD3D11Context->Map(
+            m_pDX11DynIB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+      goto done;
+    memcpy(mapped.pData, pData, sizeBytes);
+    CGraphicBase::ms_pD3D11Context->Unmap(m_pDX11DynIB, 0);
+  }
+
+  CGraphicBase::ms_pD3D11Context->IASetIndexBuffer(
+      m_pDX11DynIB,
+      (ibDesc.Format == D3DFMT_INDEX32) ? DXGI_FORMAT_R32_UINT
+                                        : DXGI_FORMAT_R16_UINT,
+      0);
+  ok = true;
+
+done:
+  pIB->Unlock();
+  return ok;
 }
 
 #ifdef _DEBUG
