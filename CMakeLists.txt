@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.19)
+cmake_minimum_required(VERSION 3.19)
 
 project(m2dev-client-src)
 
@@ -58,7 +58,7 @@ add_definitions(-DUSE_LOD)
 add_definitions(-DDUNGEON_WORK)
 add_definitions(-DBUILDING_GRANNY_STATIC)
 add_definitions(-DGRANNY_THREADED)
-add_definitions(-DPy_NO_ENABLE_SHARED)
+add_definitions(-DPy_NO_LINK_LIB)
 
 add_compile_definitions("$<$<CONFIG:Debug>:DEBUG>")
 add_compile_definitions("$<$<CONFIG:RelWithDebInfo>:_DISTRIBUTE>")
