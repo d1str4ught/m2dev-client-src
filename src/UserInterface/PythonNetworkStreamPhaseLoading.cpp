@@ -177,14 +177,6 @@ bool CPythonNetworkStream::__RecvPlayerPoints()
 
 		if (i == POINT_LEVEL)
 			m_akSimplePlayerInfo[m_dwSelectedCharacterIndex].byLevel = PointsPacket.points[i];
-		else if (i == POINT_ST)
-			m_akSimplePlayerInfo[m_dwSelectedCharacterIndex].byST = PointsPacket.points[i];
-		else if (i == POINT_HT)
-			m_akSimplePlayerInfo[m_dwSelectedCharacterIndex].byHT = PointsPacket.points[i];
-		else if (i == POINT_DX)
-			m_akSimplePlayerInfo[m_dwSelectedCharacterIndex].byDX = PointsPacket.points[i];
-		else if (i == POINT_IQ)
-			m_akSimplePlayerInfo[m_dwSelectedCharacterIndex].byIQ = PointsPacket.points[i];
 	}
 
 	PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "RefreshStatus", Py_BuildValue("()"));
