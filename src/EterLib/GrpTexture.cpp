@@ -37,6 +37,10 @@ void CGraphicTexture::DestroyDeviceObjects() {
     m_pDX11SRV->Release();
     m_pDX11SRV = nullptr;
   }
+  if (m_pDX11Texture) {
+    ((ID3D11Texture2D *)m_pDX11Texture)->Release();
+    m_pDX11Texture = nullptr;
+  }
 }
 
 void CGraphicTexture::Destroy() {
@@ -48,6 +52,7 @@ void CGraphicTexture::Destroy() {
 void CGraphicTexture::Initialize() {
   m_lpd3dTexture = NULL;
   m_pDX11SRV = nullptr;
+  m_pDX11Texture = nullptr;
   m_width = 0;
   m_height = 0;
   m_bEmpty = true;

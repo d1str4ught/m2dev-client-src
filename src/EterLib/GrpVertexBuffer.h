@@ -40,12 +40,19 @@ public:
 
   bool IsEmpty() const;
 
+  // Compute vertex stride from FVF flags (replaces D3DXGetFVFVertexSize)
+  static UINT ComputeFVFVertexSize(DWORD dwFVF);
+
 protected:
   void Initialize();
 
 protected:
-  LPDIRECT3DVERTEXBUFFER9 m_lpd3dVB;
-  ID3D11Buffer *m_pDX11Buffer; // DX11 vertex buffer (Phase 3)
+  LPDIRECT3DVERTEXBUFFER9 m_lpd3dVB; // DX9 buffer (kept for transition)
+  ID3D11Buffer *m_pDX11Buffer;       // DX11 vertex buffer (primary)
+
+  // CPU staging buffer for Lock/Unlock pattern
+  BYTE *m_pStagingData;  // CPU-side staging allocation
+  DWORD m_dwStagingSize; // Size of staging allocation
 
   DWORD m_dwBufferSize;
   DWORD m_dwFVF;
@@ -53,4 +60,5 @@ protected:
   D3DPOOL m_d3dPool;
   int m_vtxCount;
   DWORD m_dwLockFlag;
+  bool m_bDynamic; // true if buffer was created with dynamic usage
 };

@@ -39,6 +39,11 @@ public:
   // Called after DX9 has rendered the frame
   void ApplyAndPresent(ID3D11ShaderResourceView *pSceneSRV);
 
+  // Get the post-processed result as CPU data (for DX9 back buffer copy)
+  // Returns pointer to RGBA8 pixel data. Width/Height match the viewport.
+  bool GetOutputData(void **ppData, unsigned int *pRowPitch);
+  void UnmapOutputData();
+
   // Toggle effects on/off
   void SetBloomEnabled(bool bEnable) { m_bBloomEnabled = bEnable; }
   void SetBloomIntensity(float fIntensity) { m_fBloomIntensity = fIntensity; }
@@ -86,4 +91,9 @@ private:
 
   // Cached swap chain back buffer RTV (created once, not every frame)
   ID3D11RenderTargetView *m_pBackBufferRTV;
+
+  // Output staging resources for DX11→DX9 readback
+  ID3D11Texture2D *m_pOutputRT_Tex;
+  ID3D11RenderTargetView *m_pOutputRT_RTV;
+  ID3D11Texture2D *m_pOutputStagingTex;
 };

@@ -161,7 +161,9 @@ CDX11PostProcess::CDX11PostProcess()
       m_pBloomRT_RTV(nullptr), m_pBloomRT_SRV(nullptr),
       m_pBloomBlurRT_Tex(nullptr), m_pBloomBlurRT_RTV(nullptr),
       m_pBloomBlurRT_SRV(nullptr), m_pCBPostProcess(nullptr),
-      m_pSamplerLinear(nullptr), m_pBackBufferRTV(nullptr) {}
+      m_pSamplerLinear(nullptr), m_pBackBufferRTV(nullptr),
+      m_pOutputRT_Tex(nullptr), m_pOutputRT_RTV(nullptr),
+      m_pOutputStagingTex(nullptr) {}
 
 CDX11PostProcess::~CDX11PostProcess() { Shutdown(); }
 
@@ -197,8 +199,35 @@ bool CDX11PostProcess::Initialize(ID3D11Device *pDevice,
   if (FAILED(hr))
     return false;
 
+  // Create output RT for DX11→DX9 readback
+  D3D11_TEXTURE2D_DESC outDesc = {};
+  outDesc.Width = width;
+  outDesc.Height = height;
+  outDesc.MipLevels = 1;
+  outDesc.ArraySize = 1;
+  outDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+  outDesc.SampleDesc.Count = 1;
+  outDesc.Usage = D3D11_USAGE_DEFAULT;
+  outDesc.BindFlags = D3D11_BIND_RENDER_TARGET;
+  hr = m_pDevice->CreateTexture2D(&outDesc, nullptr, &m_pOutputRT_Tex);
+  if (FAILED(hr))
+    return false;
+  hr = m_pDevice->CreateRenderTargetView(m_pOutputRT_Tex, nullptr,
+                                         &m_pOutputRT_RTV);
+  if (FAILED(hr))
+    return false;
+
+  // CPU-readable staging texture for readback
+  D3D11_TEXTURE2D_DESC stagingDesc = outDesc;
+  stagingDesc.Usage = D3D11_USAGE_STAGING;
+  stagingDesc.BindFlags = 0;
+  stagingDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+  hr = m_pDevice->CreateTexture2D(&stagingDesc, nullptr, &m_pOutputStagingTex);
+  if (FAILED(hr))
+    return false;
+
   m_bInitialized = true;
-  OutputDebugStringA("[DX11] Post-process initialized\n");
+  OutputDebugStringA("[DX11] Post-process initialized with staging readback\n");
   return true;
 }
 
@@ -208,6 +237,18 @@ void CDX11PostProcess::Shutdown() {
   if (m_pBackBufferRTV) {
     m_pBackBufferRTV->Release();
     m_pBackBufferRTV = nullptr;
+  }
+  if (m_pOutputRT_RTV) {
+    m_pOutputRT_RTV->Release();
+    m_pOutputRT_RTV = nullptr;
+  }
+  if (m_pOutputRT_Tex) {
+    m_pOutputRT_Tex->Release();
+    m_pOutputRT_Tex = nullptr;
+  }
+  if (m_pOutputStagingTex) {
+    m_pOutputStagingTex->Release();
+    m_pOutputStagingTex = nullptr;
   }
 
   if (m_pFullscreenVS) {
@@ -422,18 +463,18 @@ void CDX11PostProcess::ApplyAndPresent(ID3D11ShaderResourceView *pSceneSRV) {
     m_pContext->PSSetShaderResources(0, 1, &nullSRV);
   }
 
-  // Pass 3: Composite — render to cached swap chain back buffer RTV
+  // Pass 3: Composite — render to output RT (for readback) AND swap chain
   D3D11_VIEWPORT fullVP = {0, 0, (float)m_iWidth, (float)m_iHeight, 0.0f, 1.0f};
-  m_pContext->OMSetRenderTargets(1, &m_pBackBufferRTV, nullptr);
+
+  // Render to output RT for DX9 readback
+  m_pContext->OMSetRenderTargets(1, &m_pOutputRT_RTV, nullptr);
   m_pContext->RSSetViewports(1, &fullVP);
 
   if (m_bBloomEnabled) {
-    // Composite scene + bloom
     m_pContext->PSSetShader(m_pCompositePS, nullptr, 0);
     ID3D11ShaderResourceView *srvs[2] = {pSceneSRV, m_pBloomBlurRT_SRV};
     m_pContext->PSSetShaderResources(0, 2, srvs);
   } else {
-    // Just tone-map the scene (composite with zero bloom)
     m_pContext->PSSetShader(m_pCompositePS, nullptr, 0);
     ID3D11ShaderResourceView *srvs[2] = {pSceneSRV, nullptr};
     m_pContext->PSSetShaderResources(0, 2, srvs);
@@ -444,6 +485,42 @@ void CDX11PostProcess::ApplyAndPresent(ID3D11ShaderResourceView *pSceneSRV) {
   ID3D11ShaderResourceView *nullSRVs[2] = {nullptr, nullptr};
   m_pContext->PSSetShaderResources(0, 2, nullSRVs);
 
+  // Copy output RT to staging for CPU readback
+  m_pContext->CopyResource(m_pOutputStagingTex, m_pOutputRT_Tex);
+
+  // Also render to DX11 swap chain (in case it works)
+  m_pContext->OMSetRenderTargets(1, &m_pBackBufferRTV, nullptr);
+  m_pContext->RSSetViewports(1, &fullVP);
+  if (m_bBloomEnabled) {
+    m_pContext->PSSetShader(m_pCompositePS, nullptr, 0);
+    ID3D11ShaderResourceView *srvs[2] = {pSceneSRV, m_pBloomBlurRT_SRV};
+    m_pContext->PSSetShaderResources(0, 2, srvs);
+  } else {
+    m_pContext->PSSetShader(m_pCompositePS, nullptr, 0);
+    ID3D11ShaderResourceView *srvs[2] = {pSceneSRV, nullptr};
+    m_pContext->PSSetShaderResources(0, 2, srvs);
+  }
+  DrawFullscreenQuad();
+  m_pContext->PSSetShaderResources(0, 2, nullSRVs);
+
   // Present via DX11 swap chain
   m_pSwapChain->Present(0, 0);
+}
+
+bool CDX11PostProcess::GetOutputData(void **ppData, UINT *pRowPitch) {
+  if (!m_pOutputStagingTex || !ppData || !pRowPitch)
+    return false;
+  D3D11_MAPPED_SUBRESOURCE mapped;
+  HRESULT hr =
+      m_pContext->Map(m_pOutputStagingTex, 0, D3D11_MAP_READ, 0, &mapped);
+  if (FAILED(hr))
+    return false;
+  *ppData = mapped.pData;
+  *pRowPitch = mapped.RowPitch;
+  return true;
+}
+
+void CDX11PostProcess::UnmapOutputData() {
+  if (m_pOutputStagingTex && m_pContext)
+    m_pContext->Unmap(m_pOutputStagingTex, 0);
 }

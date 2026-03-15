@@ -33,6 +33,9 @@ void CStateManager::GetScissorRect(RECT *pRect) {
 bool CStateManager::BeginScene() {
   m_bScene = true;
 
+  // Reset per-frame DX11 state so RT gets re-bound on first draw call
+  m_DX11StateCache.ResetFrameState();
+
   D3DXMATRIX m4Proj;
   D3DXMATRIX m4View;
   D3DXMATRIX m4World;
@@ -65,12 +68,19 @@ CStateManager::CStateManager(LPDIRECT3DDEVICE9EX lpDevice) : m_lpD3DDev(NULL) {
 
   // DX11: Initialize state cache with DX11 device (from CGraphicBase statics)
   if (CGraphicBase::ms_pD3D11Device && CGraphicBase::ms_pD3D11Context) {
+    D3DVIEWPORT9 vp9;
+    m_lpD3DDev->GetViewport(&vp9);
     m_DX11StateCache.Initialize(CGraphicBase::ms_pD3D11Device,
-                                CGraphicBase::ms_pD3D11Context);
+                                CGraphicBase::ms_pD3D11Context, (int)vp9.Width,
+                                (int)vp9.Height);
     m_DX11ShaderManager.Initialize(CGraphicBase::ms_pD3D11Device,
                                    CGraphicBase::ms_pD3D11Context);
   }
   m_bDX11TransformDirty = true;
+
+  // Skip DX9 draw calls when DX11 is active (DX9 renders to hidden 1x1 window)
+  m_bDX11RenderOnly =
+      (CGraphicBase::ms_pD3D11Device && CGraphicBase::ms_pD3D11Context);
 
   // DX11: Initialize dynamic buffer pointers (Phase 2C)
   m_pDX11DynVB = nullptr;
@@ -501,9 +511,72 @@ void CStateManager::SetTexture(DWORD dwStage, LPDIRECT3DBASETEXTURE9 pTexture) {
   // DX11: Bind matching SRV via static texture registry
   if (CGraphicBase::ms_pD3D11Context) {
     ID3D11ShaderResourceView *pSRV = CGraphicTexture::LookupDX11SRV(pTexture);
-    CGraphicBase::ms_pD3D11Context->PSSetShaderResources(
-        dwStage, 1,
-        &pSRV); // nullptr unbinds
+
+    // On-demand DX11 SRV creation for unregistered DX9 textures
+    // Uses staging surface for D3DPOOL_DEFAULT textures (can't lock directly)
+    if (!pSRV && pTexture && CGraphicBase::ms_pD3D11Device) {
+      IDirect3DTexture9 *pTex2D = nullptr;
+      if (SUCCEEDED(pTexture->QueryInterface(IID_IDirect3DTexture9,
+                                             (void **)&pTex2D))) {
+        D3DSURFACE_DESC d3d9Desc;
+        pTex2D->GetLevelDesc(0, &d3d9Desc);
+        IDirect3DSurface9 *pSrcSurf = nullptr, *pStageSurf = nullptr;
+        if (SUCCEEDED(pTex2D->GetSurfaceLevel(0, &pSrcSurf))) {
+          if (SUCCEEDED(m_lpD3DDev->CreateOffscreenPlainSurface(
+                  d3d9Desc.Width, d3d9Desc.Height, d3d9Desc.Format,
+                  D3DPOOL_SYSTEMMEM, &pStageSurf, nullptr))) {
+            if (SUCCEEDED(D3DXLoadSurfaceFromSurface(pStageSurf, NULL, NULL,
+                                                     pSrcSurf, NULL, NULL,
+                                                     D3DX_FILTER_NONE, 0))) {
+              D3DLOCKED_RECT lr;
+              if (SUCCEEDED(
+                      pStageSurf->LockRect(&lr, NULL, D3DLOCK_READONLY))) {
+                DXGI_FORMAT dxgiFmt = DXGI_FORMAT_B8G8R8A8_UNORM;
+                if (d3d9Desc.Format == D3DFMT_A4R4G4B4)
+                  dxgiFmt = DXGI_FORMAT_B4G4R4A4_UNORM;
+                else if (d3d9Desc.Format == D3DFMT_A1R5G5B5)
+                  dxgiFmt = DXGI_FORMAT_B5G5R5A1_UNORM;
+                else if (d3d9Desc.Format == D3DFMT_R5G6B5)
+                  dxgiFmt = DXGI_FORMAT_B5G6R5_UNORM;
+                else if (d3d9Desc.Format == D3DFMT_X8R8G8B8)
+                  dxgiFmt = DXGI_FORMAT_B8G8R8X8_UNORM;
+                D3D11_TEXTURE2D_DESC dx11Desc = {};
+                dx11Desc.Width = d3d9Desc.Width;
+                dx11Desc.Height = d3d9Desc.Height;
+                dx11Desc.MipLevels = 1;
+                dx11Desc.ArraySize = 1;
+                dx11Desc.Format = dxgiFmt;
+                dx11Desc.SampleDesc.Count = 1;
+                dx11Desc.Usage = D3D11_USAGE_DEFAULT;
+                dx11Desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+                D3D11_SUBRESOURCE_DATA initData = {};
+                initData.pSysMem = lr.pBits;
+                initData.SysMemPitch = lr.Pitch;
+                ID3D11Texture2D *pDX11Tex = nullptr;
+                if (SUCCEEDED(CGraphicBase::ms_pD3D11Device->CreateTexture2D(
+                        &dx11Desc, &initData, &pDX11Tex))) {
+                  D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+                  srvDesc.Format = dxgiFmt;
+                  srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+                  srvDesc.Texture2D.MipLevels = 1;
+                  CGraphicBase::ms_pD3D11Device->CreateShaderResourceView(
+                      pDX11Tex, &srvDesc, &pSRV);
+                  pDX11Tex->Release();
+                  if (pSRV)
+                    CGraphicTexture::RegisterDX11SRV(pTexture, pSRV);
+                }
+                pStageSurf->UnlockRect();
+              }
+            }
+            pStageSurf->Release();
+          }
+          pSrcSurf->Release();
+        }
+        pTex2D->Release();
+      }
+    }
+
+    CGraphicBase::ms_pD3D11Context->PSSetShaderResources(dwStage, 1, &pSRV);
   }
 }
 
@@ -737,8 +810,8 @@ void CStateManager::SetVertexShaderConstant(DWORD dwRegister,
 void CStateManager::SetPixelShaderConstant(DWORD dwRegister,
                                            CONST void *pConstantData,
                                            DWORD dwConstantCount) {
-  m_lpD3DDev->SetVertexShaderConstantF(dwRegister, (const float *)pConstantData,
-                                       dwConstantCount);
+  m_lpD3DDev->SetPixelShaderConstantF(dwRegister, (const float *)pConstantData,
+                                      dwConstantCount);
 }
 
 void CStateManager::SaveStreamSource(UINT StreamNumber,
@@ -800,32 +873,10 @@ HRESULT CStateManager::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType,
   ++m_iDrawCallCount;
 #endif
 
-  // DX11 pipeline — only run when DX11 is enabled and context exists
-  if (CGraphicBase::ms_bDX11PostProcessEnabled &&
-      CGraphicBase::ms_pD3D11Context) {
-
-    // Crash log: write step to file (survives crash)
-    static int s_iLogCount = 0;
-    static bool s_bLogEnabled = true;
-    if (s_bLogEnabled && s_iLogCount < 20) {
-      FILE *fp = fopen("dx11_crash.log", "a");
-      if (fp) {
-        fprintf(fp, "DP step=1 ApplyState count=%d\n", s_iLogCount);
-        fflush(fp);
-        fclose(fp);
-      }
-    }
+  // DX11 pipeline
+  if (CGraphicBase::ms_pD3D11Context) {
 
     m_DX11StateCache.ApplyState();
-
-    if (s_bLogEnabled && s_iLogCount < 20) {
-      FILE *fp = fopen("dx11_crash.log", "a");
-      if (fp) {
-        fprintf(fp, "DP step=2 UpdateTransforms\n");
-        fflush(fp);
-        fclose(fp);
-      }
-    }
 
     if (m_bDX11TransformDirty) {
       m_DX11ShaderManager.UpdateTransforms(
@@ -835,48 +886,42 @@ HRESULT CStateManager::DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType,
       m_bDX11TransformDirty = false;
     }
 
-    if (s_bLogEnabled && s_iLogCount < 20) {
-      FILE *fp = fopen("dx11_crash.log", "a");
-      if (fp) {
-        fprintf(fp, "DP step=3 MirrorVB\n");
-        fflush(fp);
-        fclose(fp);
-      }
-    }
+    SyncDX11MaterialParams();
 
     LPDIRECT3DVERTEXBUFFER9 pVB = m_CurrentState.m_StreamData[0].m_lpStreamData;
     UINT stride = m_CurrentState.m_StreamData[0].m_Stride;
     UINT vertexCount = PrimCountToVertexCount(PrimitiveType, PrimitiveCount);
-    if (pVB && stride > 0 &&
-        MirrorDX9VB(pVB, stride, StartVertex, vertexCount)) {
 
-      if (s_bLogEnabled && s_iLogCount < 20) {
-        FILE *fp = fopen("dx11_crash.log", "a");
-        if (fp) {
-          fprintf(fp, "DP step=4 Draw verts=%u stride=%u\n", vertexCount,
-                  stride);
-          fflush(fp);
-          fclose(fp);
+    // TriangleFan → indexed TriangleList (use IB to avoid vertex duplication)
+    if (PrimitiveType == D3DPT_TRIANGLEFAN && PrimitiveCount >= 1) {
+      UINT fanVertCount = PrimitiveCount + 2;
+      if (pVB && stride > 0 &&
+          MirrorDX9VB(pVB, stride, StartVertex, fanVertCount)) {
+        UINT listTriCount = PrimitiveCount;
+        UINT indexCount = listTriCount * 3;
+        std::vector<UINT16> indices(indexCount);
+        for (UINT t = 0; t < listTriCount; t++) {
+          indices[t * 3 + 0] = 0;
+          indices[t * 3 + 1] = (UINT16)(t + 1);
+          indices[t * 3 + 2] = (UINT16)(t + 2);
+        }
+        UINT ibSize = indexCount * sizeof(UINT16);
+        if (EnsureDX11IB(ibSize) && UploadDX11IB(indices.data(), ibSize)) {
+          CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
+              D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+          CGraphicBase::ms_pD3D11Context->DrawIndexed(indexCount, 0, 0);
         }
       }
-
+    } else if (pVB && stride > 0 &&
+               MirrorDX9VB(pVB, stride, StartVertex, vertexCount)) {
       CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
           MapTopology(PrimitiveType));
       CGraphicBase::ms_pD3D11Context->Draw(vertexCount, 0);
     }
-
-    if (s_bLogEnabled && s_iLogCount < 20) {
-      FILE *fp = fopen("dx11_crash.log", "a");
-      if (fp) {
-        fprintf(fp, "DP step=5 DONE\n");
-        fflush(fp);
-        fclose(fp);
-      }
-      s_iLogCount++;
-      if (s_iLogCount >= 20)
-        s_bLogEnabled = false;
-    }
   }
+
+  if (m_bDX11RenderOnly)
+    return S_OK;
 
   return (
       m_lpD3DDev->DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount));
@@ -946,19 +991,9 @@ HRESULT CStateManager::DrawPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType,
 
   m_CurrentState.m_StreamData[0] = NULL;
 
-  // DX11 pipeline — all inside guard
-  if (CGraphicBase::ms_bDX11PostProcessEnabled &&
-      CGraphicBase::ms_pD3D11Context && pVertexStreamZeroData &&
+  // DX11 pipeline
+  if (CGraphicBase::ms_pD3D11Context && pVertexStreamZeroData &&
       VertexStreamZeroStride > 0) {
-    static int s_upLog = 0;
-    if (s_upLog < 5) {
-      FILE *fp = fopen("dx11_crash.log", "a");
-      if (fp) {
-        fprintf(fp, "DPUP step=1 count=%d\n", s_upLog);
-        fflush(fp);
-        fclose(fp);
-      }
-    }
     m_DX11StateCache.ApplyState();
     if (m_bDX11TransformDirty) {
       m_DX11ShaderManager.UpdateTransforms(
@@ -967,31 +1002,47 @@ HRESULT CStateManager::DrawPrimitiveUP(D3DPRIMITIVETYPE PrimitiveType,
           (const float *)&m_CurrentState.m_Matrices[D3DTS_PROJECTION]);
       m_bDX11TransformDirty = false;
     }
-    if (s_upLog < 5) {
-      FILE *fp = fopen("dx11_crash.log", "a");
-      if (fp) {
-        fprintf(fp, "DPUP step=2 upload\n");
-        fflush(fp);
-        fclose(fp);
+
+    SyncDX11MaterialParams();
+
+    // TriangleFan → TriangleList conversion (DX11 has no fan topology)
+    if (PrimitiveType == D3DPT_TRIANGLEFAN && PrimitiveCount >= 1) {
+      UINT fanVertCount = PrimitiveCount + 2;
+      UINT listTriCount = PrimitiveCount;
+      UINT listVertCount = listTriCount * 3;
+      UINT stride = VertexStreamZeroStride;
+      UINT listSize = listVertCount * stride;
+
+      // Expand fan (v0,v1,v2,...) → list (v0,v1,v2, v0,v2,v3, ...)
+      std::vector<BYTE> expanded(listSize);
+      const BYTE *src = (const BYTE *)pVertexStreamZeroData;
+      BYTE *dst = expanded.data();
+      for (UINT t = 0; t < listTriCount; t++) {
+        memcpy(dst + (t * 3 + 0) * stride, src, stride); // v0 (fan center)
+        memcpy(dst + (t * 3 + 1) * stride, src + (t + 1) * stride,
+               stride); // v(t+1)
+        memcpy(dst + (t * 3 + 2) * stride, src + (t + 2) * stride,
+               stride); // v(t+2)
       }
-    }
-    UINT vertexCount = PrimCountToVertexCount(PrimitiveType, PrimitiveCount);
-    UINT dataSize = vertexCount * VertexStreamZeroStride;
-    if (UploadDX11VB(pVertexStreamZeroData, dataSize, VertexStreamZeroStride)) {
-      CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
-          MapTopology(PrimitiveType));
-      CGraphicBase::ms_pD3D11Context->Draw(vertexCount, 0);
-    }
-    if (s_upLog < 5) {
-      FILE *fp = fopen("dx11_crash.log", "a");
-      if (fp) {
-        fprintf(fp, "DPUP step=3 DONE\n");
-        fflush(fp);
-        fclose(fp);
+      if (UploadDX11VB(expanded.data(), listSize, stride)) {
+        CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
+            D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        CGraphicBase::ms_pD3D11Context->Draw(listVertCount, 0);
       }
-      s_upLog++;
+    } else {
+      UINT vertexCount = PrimCountToVertexCount(PrimitiveType, PrimitiveCount);
+      UINT dataSize = vertexCount * VertexStreamZeroStride;
+      if (UploadDX11VB(pVertexStreamZeroData, dataSize,
+                       VertexStreamZeroStride)) {
+        CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
+            MapTopology(PrimitiveType));
+        CGraphicBase::ms_pD3D11Context->Draw(vertexCount, 0);
+      }
     }
   }
+
+  if (m_bDX11RenderOnly)
+    return S_OK;
 
   return (m_lpD3DDev->DrawPrimitiveUP(PrimitiveType, PrimitiveCount,
                                       pVertexStreamZeroData,
@@ -1005,18 +1056,8 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
   ++m_iDrawCallCount;
 #endif
 
-  // DX11 pipeline — all inside guard
-  if (CGraphicBase::ms_bDX11PostProcessEnabled &&
-      CGraphicBase::ms_pD3D11Context) {
-    static int s_diLog = 0;
-    if (s_diLog < 5) {
-      FILE *fp = fopen("dx11_crash.log", "a");
-      if (fp) {
-        fprintf(fp, "DIP1 step=1 count=%d\n", s_diLog);
-        fflush(fp);
-        fclose(fp);
-      }
-    }
+  // DX11 pipeline
+  if (CGraphicBase::ms_pD3D11Context) {
     m_DX11StateCache.ApplyState();
     if (m_bDX11TransformDirty) {
       m_DX11ShaderManager.UpdateTransforms(
@@ -1025,14 +1066,7 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
           (const float *)&m_CurrentState.m_Matrices[D3DTS_PROJECTION]);
       m_bDX11TransformDirty = false;
     }
-    if (s_diLog < 5) {
-      FILE *fp = fopen("dx11_crash.log", "a");
-      if (fp) {
-        fprintf(fp, "DIP1 step=2 mirror\n");
-        fflush(fp);
-        fclose(fp);
-      }
-    }
+    SyncDX11MaterialParams();
     LPDIRECT3DVERTEXBUFFER9 pVB = m_CurrentState.m_StreamData[0].m_lpStreamData;
     LPDIRECT3DINDEXBUFFER9 pIB = m_CurrentState.m_IndexData.m_lpIndexData;
     UINT stride = m_CurrentState.m_StreamData[0].m_Stride;
@@ -1043,16 +1077,10 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
           MapTopology(PrimitiveType));
       CGraphicBase::ms_pD3D11Context->DrawIndexed(indexCount, 0, 0);
     }
-    if (s_diLog < 5) {
-      FILE *fp = fopen("dx11_crash.log", "a");
-      if (fp) {
-        fprintf(fp, "DIP1 step=3 DONE\n");
-        fflush(fp);
-        fclose(fp);
-      }
-      s_diLog++;
-    }
   }
+
+  if (m_bDX11RenderOnly)
+    return S_OK;
 
   return (m_lpD3DDev->DrawIndexedPrimitive(PrimitiveType, 0, minIndex,
                                            NumVertices, startIndex, primCount));
@@ -1066,18 +1094,8 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
   ++m_iDrawCallCount;
 #endif
 
-  // DX11 pipeline — all inside guard
-  if (CGraphicBase::ms_bDX11PostProcessEnabled &&
-      CGraphicBase::ms_pD3D11Context) {
-    static int s_di2Log = 0;
-    if (s_di2Log < 5) {
-      FILE *fp = fopen("dx11_crash.log", "a");
-      if (fp) {
-        fprintf(fp, "DIP2 step=1 count=%d\n", s_di2Log);
-        fflush(fp);
-        fclose(fp);
-      }
-    }
+  // DX11 pipeline - DX11 draw path
+  if (CGraphicBase::ms_pD3D11Context) {
     m_DX11StateCache.ApplyState();
     if (m_bDX11TransformDirty) {
       m_DX11ShaderManager.UpdateTransforms(
@@ -1086,14 +1104,7 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
           (const float *)&m_CurrentState.m_Matrices[D3DTS_PROJECTION]);
       m_bDX11TransformDirty = false;
     }
-    if (s_di2Log < 5) {
-      FILE *fp = fopen("dx11_crash.log", "a");
-      if (fp) {
-        fprintf(fp, "DIP2 step=2 mirror\n");
-        fflush(fp);
-        fclose(fp);
-      }
-    }
+    SyncDX11MaterialParams();
     LPDIRECT3DVERTEXBUFFER9 pVB = m_CurrentState.m_StreamData[0].m_lpStreamData;
     LPDIRECT3DINDEXBUFFER9 pIB = m_CurrentState.m_IndexData.m_lpIndexData;
     UINT stride = m_CurrentState.m_StreamData[0].m_Stride;
@@ -1105,16 +1116,10 @@ HRESULT CStateManager::DrawIndexedPrimitive(D3DPRIMITIVETYPE PrimitiveType,
       CGraphicBase::ms_pD3D11Context->DrawIndexed(indexCount, 0,
                                                   baseVertexIndex);
     }
-    if (s_di2Log < 5) {
-      FILE *fp = fopen("dx11_crash.log", "a");
-      if (fp) {
-        fprintf(fp, "DIP2 step=3 DONE\n");
-        fflush(fp);
-        fclose(fp);
-      }
-      s_di2Log++;
-    }
   }
+
+  if (m_bDX11RenderOnly)
+    return S_OK;
 
   return (m_lpD3DDev->DrawIndexedPrimitive(PrimitiveType, baseVertexIndex,
                                            minIndex, NumVertices, startIndex,
@@ -1131,10 +1136,79 @@ HRESULT CStateManager::DrawIndexedPrimitiveUP(
 
   m_CurrentState.m_IndexData = NULL;
   m_CurrentState.m_StreamData[0] = NULL;
+
+  // DX11 pipeline
+  if (CGraphicBase::ms_pD3D11Context && pVertexStreamZeroData && pIndexData &&
+      VertexStreamZeroStride > 0 && PrimitiveCount > 0) {
+    m_DX11StateCache.ApplyState();
+    if (m_bDX11TransformDirty) {
+      m_DX11ShaderManager.UpdateTransforms(
+          (const float *)&m_CurrentState.m_Matrices[D3DTS_WORLD],
+          (const float *)&m_CurrentState.m_Matrices[D3DTS_VIEW],
+          (const float *)&m_CurrentState.m_Matrices[D3DTS_PROJECTION]);
+      m_bDX11TransformDirty = false;
+    }
+
+    SyncDX11MaterialParams();
+
+    // Upload vertex data
+    UINT vbSize = NumVertexIndices * VertexStreamZeroStride;
+    if (UploadDX11VB(pVertexStreamZeroData, vbSize, VertexStreamZeroStride)) {
+      // Upload index data
+      UINT indexCount = PrimCountToIndexCount(PrimitiveType, PrimitiveCount);
+      UINT indexSize = (IndexDataFormat == D3DFMT_INDEX32) ? 4 : 2;
+      UINT ibSize = indexCount * indexSize;
+
+      if (EnsureDX11IB(ibSize)) {
+        D3D11_MAPPED_SUBRESOURCE mapped;
+        if (SUCCEEDED(CGraphicBase::ms_pD3D11Context->Map(
+                m_pDX11DynIB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
+          memcpy(mapped.pData, pIndexData, ibSize);
+          CGraphicBase::ms_pD3D11Context->Unmap(m_pDX11DynIB, 0);
+
+          CGraphicBase::ms_pD3D11Context->IASetIndexBuffer(
+              m_pDX11DynIB,
+              (IndexDataFormat == D3DFMT_INDEX32) ? DXGI_FORMAT_R32_UINT
+                                                  : DXGI_FORMAT_R16_UINT,
+              0);
+          CGraphicBase::ms_pD3D11Context->IASetPrimitiveTopology(
+              MapTopology(PrimitiveType));
+          CGraphicBase::ms_pD3D11Context->DrawIndexed(indexCount, 0, 0);
+        }
+      }
+    }
+  }
+
+  if (m_bDX11RenderOnly)
+    return S_OK;
+
   return (m_lpD3DDev->DrawIndexedPrimitiveUP(
       PrimitiveType, MinVertexIndex, NumVertexIndices, PrimitiveCount,
       pIndexData, IndexDataFormat, pVertexStreamZeroData,
       VertexStreamZeroStride));
+}
+
+// ============================================================================
+// DX11 Material Parameter Sync
+// ============================================================================
+
+void CStateManager::SyncDX11MaterialParams() {
+  float alphaRef =
+      (float)(m_CurrentState.m_RenderStates[D3DRS_ALPHAREF] & 0xFF) / 255.0f;
+  bool alphaTestEnable =
+      m_CurrentState.m_RenderStates[D3DRS_ALPHATESTENABLE] != 0;
+  bool fogEnable = m_CurrentState.m_RenderStates[D3DRS_FOGENABLE] != 0;
+
+  DWORD fogColor = m_CurrentState.m_RenderStates[D3DRS_FOGCOLOR];
+  float vFogColor[4] = {((fogColor >> 16) & 0xFF) / 255.0f,
+                         ((fogColor >> 8) & 0xFF) / 255.0f,
+                         (fogColor & 0xFF) / 255.0f, 1.0f};
+
+  float fogStart = *(float *)&m_CurrentState.m_RenderStates[D3DRS_FOGSTART];
+  float fogEnd = *(float *)&m_CurrentState.m_RenderStates[D3DRS_FOGEND];
+
+  m_DX11ShaderManager.UpdateMaterialParams(alphaRef, alphaTestEnable, fogEnable,
+                                           vFogColor, fogStart, fogEnd);
 }
 
 // ============================================================================
@@ -1236,13 +1310,11 @@ bool CStateManager::MirrorDX9VB(LPDIRECT3DVERTEXBUFFER9 pVB, UINT stride,
   if (!pVB || stride == 0 || vertexCount == 0)
     return false;
 
-  // CRITICAL: Check buffer pool before locking. D3DPOOL_DEFAULT buffers are
-  // GPU-only and Lock() can crash the driver instead of returning FAILED.
+  // Note: We use DX9Ex which allows locking all buffer pools (DEFAULT included).
+  // DX9Ex manages memory internally, so Lock() works on static DEFAULT buffers.
   D3DVERTEXBUFFER_DESC vbDesc;
   if (FAILED(pVB->GetDesc(&vbDesc)))
     return false;
-  if (vbDesc.Pool == D3DPOOL_DEFAULT && !(vbDesc.Usage & D3DUSAGE_DYNAMIC))
-    return false; // Can't safely lock GPU-only static buffers
 
   UINT offsetBytes = startVertex * stride;
   UINT sizeBytes = vertexCount * stride;
@@ -1272,12 +1344,10 @@ bool CStateManager::MirrorDX9IB(LPDIRECT3DINDEXBUFFER9 pIB, UINT startIndex,
   if (!pIB || indexCount == 0)
     return false;
 
-  // CRITICAL: Check buffer pool before locking
+  // Note: DX9Ex allows locking all buffer pools including static DEFAULT.
   D3DINDEXBUFFER_DESC ibDesc;
   if (FAILED(pIB->GetDesc(&ibDesc)))
     return false;
-  if (ibDesc.Pool == D3DPOOL_DEFAULT && !(ibDesc.Usage & D3DUSAGE_DYNAMIC))
-    return false; // Can't safely lock GPU-only static buffers
 
   UINT indexSize = (ibDesc.Format == D3DFMT_INDEX32) ? 4 : 2;
   UINT offsetBytes = startIndex * indexSize;

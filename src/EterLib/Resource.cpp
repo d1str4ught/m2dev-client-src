@@ -51,7 +51,6 @@ void CResource::Load()
 	if (CPackManager::Instance().GetFile(c_szFileName, file))
 	{
 		m_dwLoadCostMiliiSecond = ELTimer_GetMSec() - dwStart;
-		//Tracef("CResource::Load %s (%d bytes) in %d ms\n", c_szFileName, file.Size(), m_dwLoadCostMiliiSecond);
 
 		if (OnLoad(file.size(), file.data()))
 		{
@@ -59,18 +58,19 @@ void CResource::Load()
 		}
 		else
 		{
-			Tracef("CResource::Load Error %s\n", c_szFileName);
+			TraceError("CResource::Load - OnLoad FAILED for '%s' (%zu bytes from pack)", c_szFileName, file.size());
 			me_state = STATE_ERROR;
 			return;
 		}
 	}
 	else
 	{
+		TraceError("CResource::Load - pack GetFile FAILED for '%s'", c_szFileName);
 		if (OnLoad(0, NULL))
 			me_state = STATE_EXIST;
 		else
 		{
-			Tracef("CResource::Load file not exist %s\n", c_szFileName);
+			TraceError("CResource::Load - file not exist '%s'", c_szFileName);
 			me_state = STATE_ERROR;
 		}
 	}

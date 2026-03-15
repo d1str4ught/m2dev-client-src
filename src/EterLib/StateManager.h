@@ -368,6 +368,9 @@ private:
   CDX11ShaderManager m_DX11ShaderManager;
   bool m_bDX11TransformDirty;
 
+  // When true, skip DX9 draw calls (DX9 renders to hidden 1x1 dummy window)
+  bool m_bDX11RenderOnly;
+
   std::vector<DWORD> m_RenderStateStack[STATEMANAGER_MAX_RENDERSTATES];
   std::vector<DWORD> m_SamplerStateStack[STATEMANAGER_MAX_STAGES]
                                         [STATEMANAGER_MAX_TEXTURESTATES];
@@ -394,6 +397,7 @@ private:
   bool EnsureDX11IB(UINT sizeBytes);
   bool UploadDX11VB(const void *pData, UINT sizeBytes, UINT stride);
   bool UploadDX11IB(const void *pData, UINT sizeBytes);
+  void SyncDX11MaterialParams();
   bool MirrorDX9VB(LPDIRECT3DVERTEXBUFFER9 pVB, UINT stride, UINT startVertex,
                    UINT vertexCount);
   bool MirrorDX9IB(LPDIRECT3DINDEXBUFFER9 pIB, UINT startIndex,

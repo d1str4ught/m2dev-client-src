@@ -36,8 +36,13 @@ protected:
   void Initialize();
 
 protected:
-  LPDIRECT3DINDEXBUFFER9 m_lpd3dIdxBuf;
-  ID3D11Buffer *m_pDX11Buffer; // DX11 index buffer (Phase 3)
+  LPDIRECT3DINDEXBUFFER9 m_lpd3dIdxBuf; // DX9 buffer (kept for transition)
+  ID3D11Buffer *m_pDX11Buffer;          // DX11 index buffer (primary)
+
+  // CPU staging buffer for Lock/Unlock pattern
+  BYTE *m_pStagingData;
+  DWORD m_dwStagingSize;
+
   DWORD m_dwBufferSize;
   D3DFORMAT m_d3dFmt;
   int m_iidxCount;

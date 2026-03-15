@@ -303,6 +303,19 @@ int CGraphicDevice::Create(HWND hWnd, int iHres, int iVres, bool Windowed,
 
   ms_hWnd = hWnd;
   ms_hDC = GetDC(hWnd);
+
+  // =========================================================================
+  // PHASE 1: Create DX11 device FIRST — it owns the real window/swap chain
+  // =========================================================================
+  if (!__CreateDX11Device(hWnd, iHres, iVres, Windowed)) {
+    Tracenf("FATAL: DX11 device creation failed");
+    return CREATE_NO_DIRECTX;
+  }
+
+  // =========================================================================
+  // Create DX9 device with a HIDDEN dummy window (internal computation only)
+  // DX9 is used temporarily for subsystems not yet converted to DX11
+  // =========================================================================
   Direct3DCreate9Ex(D3D_SDK_VERSION, &ms_lpd3d);
 
   if (!ms_lpd3d)
@@ -350,65 +363,35 @@ int CGraphicDevice::Create(HWND hWnd, int iHres, int iVres, bool Windowed,
   int ErrorCorrection = 0;
   bool disableMSAA = false;
 
+  // Create a hidden 1x1 dummy window for DX9 (it must NOT touch the real
+  // window)
+  HWND hDummyWnd =
+      CreateWindowExA(0, "STATIC", "DX9Dummy", WS_POPUP, 0, 0, 1, 1, nullptr,
+                      nullptr, GetModuleHandle(nullptr), nullptr);
+
 RETRY:
   ZeroMemory(&ms_d3dPresentParameter, sizeof(ms_d3dPresentParameter));
 
-  ms_d3dPresentParameter.Windowed = Windowed;
-  ms_d3dPresentParameter.BackBufferWidth = iHres;
-  ms_d3dPresentParameter.BackBufferHeight = iVres;
-  ms_d3dPresentParameter.hDeviceWindow = hWnd;
-  ms_d3dPresentParameter.BackBufferFormat =
-      Windowed ? D3DFMT_UNKNOWN : d3dDisplayMode.Format;
-  ms_d3dPresentParameter.BackBufferCount = m_uBackBufferCount;
+  ms_d3dPresentParameter.Windowed = TRUE; // Always windowed for dummy
+  ms_d3dPresentParameter.BackBufferWidth = 1;
+  ms_d3dPresentParameter.BackBufferHeight = 1;
+  ms_d3dPresentParameter.hDeviceWindow = hDummyWnd;
+  ms_d3dPresentParameter.BackBufferFormat = D3DFMT_UNKNOWN;
+  ms_d3dPresentParameter.BackBufferCount = 1;
   ms_d3dPresentParameter.SwapEffect = D3DSWAPEFFECT_DISCARD;
   ms_d3dPresentParameter.MultiSampleType = D3DMULTISAMPLE_NONE;
-
-  if (Windowed) {
-    ms_d3dPresentParameter.PresentationInterval = D3DPRESENT_INTERVAL_DEFAULT;
-    ms_d3dPresentParameter.FullScreen_RefreshRateInHz = 0;
-  } else {
-    ms_d3dPresentParameter.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
-    ms_d3dPresentParameter.FullScreen_RefreshRateInHz = D3DPRESENT_RATE_DEFAULT;
-  }
-
+  ms_d3dPresentParameter.PresentationInterval = D3DPRESENT_INTERVAL_DEFAULT;
+  ms_d3dPresentParameter.FullScreen_RefreshRateInHz = 0;
   ms_d3dPresentParameter.EnableAutoDepthStencil = TRUE;
   ms_d3dPresentParameter.AutoDepthStencilFormat = D3DFMT_D24S8;
 
-  // Enable MSAA only in fullscreen and only if supported for the chosen
-  // backbuffer format
-  if (!Windowed && !disableMSAA) {
-    D3DFORMAT msaaCheckFormat = ms_d3dPresentParameter.BackBufferFormat;
-    if (SUCCEEDED(ms_lpd3d->CheckDeviceMultiSampleType(
-            D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, msaaCheckFormat, FALSE,
-            D3DMULTISAMPLE_2_SAMPLES,
-            &ms_d3dPresentParameter.MultiSampleQuality))) {
-      ms_d3dPresentParameter.MultiSampleType = D3DMULTISAMPLE_2_SAMPLES;
-      ms_d3dPresentParameter.MultiSampleQuality = 0;
-    }
-
-    if (SUCCEEDED(ms_lpd3d->CheckDeviceMultiSampleType(
-            D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, msaaCheckFormat, FALSE,
-            D3DMULTISAMPLE_4_SAMPLES,
-            &ms_d3dPresentParameter.MultiSampleQuality))) {
-      ms_d3dPresentParameter.MultiSampleType = D3DMULTISAMPLE_4_SAMPLES;
-      ms_d3dPresentParameter.MultiSampleQuality = 0;
-    }
-  }
-
-  D3DDISPLAYMODEEX displayModeEx;
-  ZeroMemory(&displayModeEx, sizeof(displayModeEx));
-  displayModeEx.Size = sizeof(D3DDISPLAYMODEEX);
-  displayModeEx.Width = iHres;
-  displayModeEx.Height = iVres;
-  displayModeEx.RefreshRate = iReflashRate;
-  displayModeEx.Format = d3dDisplayMode.Format;
-  displayModeEx.ScanLineOrdering = D3DSCANLINEORDERING_PROGRESSIVE;
-
-  D3DDISPLAYMODEEX *pDisplayMode = Windowed ? NULL : &displayModeEx;
+  // Store real dimensions for use by other systems
+  // (ms_d3dPresentParameter dimensions are 1x1 for dummy window)
 
   if (FAILED(ms_hLastResult = ms_lpd3d->CreateDeviceEx(
-                 D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, ms_dwD3DBehavior,
-                 &ms_d3dPresentParameter, pDisplayMode, &ms_lpd3dDevice))) {
+                 D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hDummyWnd,
+                 ms_dwD3DBehavior, &ms_d3dPresentParameter, nullptr,
+                 &ms_lpd3dDevice))) {
     switch (ms_hLastResult) {
     case D3DERR_INVALIDCALL:
       Tracen("IDirect3DDevice.CreateDevice - ERROR D3DERR_INVALIDCALL\nThe "
@@ -429,10 +412,11 @@ RETRY:
       break;
     }
 
-    if (ErrorCorrection)
+    if (ErrorCorrection) {
+      DestroyWindow(hDummyWnd);
       return CREATE_DEVICE;
+    }
 
-    // Retry with conservative settings
     disableMSAA = true;
     iReflashRate = 0;
     ++ErrorCorrection;
@@ -440,10 +424,13 @@ RETRY:
     goto RETRY;
   }
 
+  // Restore real backbuffer dimensions for systems that read them
+  ms_d3dPresentParameter.BackBufferWidth = iHres;
+  ms_d3dPresentParameter.BackBufferHeight = iVres;
+  ms_d3dPresentParameter.hDeviceWindow = hWnd; // Systems read this
+
   // Check DXT Support Info
-  const D3DFORMAT baseFormatForTextureCheck =
-      Windowed ? d3dDisplayMode.Format
-               : ms_d3dPresentParameter.BackBufferFormat;
+  const D3DFORMAT baseFormatForTextureCheck = d3dDisplayMode.Format;
   if (ms_lpd3d->CheckDeviceFormat(
           D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, baseFormatForTextureCheck, 0,
           D3DRTYPE_TEXTURE, D3DFMT_DXT1) == D3DERR_NOTAVAILABLE) {
@@ -469,9 +456,6 @@ RETRY:
 
   if (!Windowed)
     SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, iHres, iVres, SWP_SHOWWINDOW);
-
-  // Tracef("vertex shader version :
-  // %X\n",(DWORD)ms_d3dCaps.VertexShaderVersion);
 
   ms_lpd3dDevice->GetViewport(&ms_Viewport);
 
@@ -532,7 +516,6 @@ RETRY:
   else
     GRAPHICS_CAPS_CAN_NOT_TEXTURE_ADDRESS_BORDER = true;
 
-  // D3DADAPTER_IDENTIFIER9& rkD3DAdapterId=pkD3DAdapterInfo->GetIdentifier();
   if (strnicmp(d3dAdapterId.Driver, "SIS", 3) == 0) {
     GRAPHICS_CAPS_CAN_NOT_DRAW_LINE = true;
     GRAPHICS_CAPS_CAN_NOT_DRAW_SHADOW = true;
@@ -549,11 +532,6 @@ RETRY:
   __cpuid(cpuInfo, 1);
 
   CPU_HAS_SSE2 = cpuInfo[3] & (1 << 26);
-
-  // Create DX11 device alongside DX9 (Phase 1 migration)
-  if (!__CreateDX11Device(hWnd, iHres, iVres, Windowed)) {
-    Tracenf("WARNING: DX11 device creation failed — DX9 only mode");
-  }
 
   return (iRet);
 }

@@ -25,6 +25,29 @@ bool CGraphicImageTexture::Lock(int *pRetPitch, void **ppRetPixels, int level) {
 void CGraphicImageTexture::Unlock(int level) {
   assert(m_lpd3dTexture != NULL);
   m_lpd3dTexture->UnlockRect(level);
+
+  // DX11: Sync the entire texture to DX11 via Map/Unmap
+  if (m_pDX11Texture && ms_pD3D11Context && level == 0) {
+    // Re-lock DX9 to read the data
+    D3DLOCKED_RECT srcRect;
+    if (SUCCEEDED(
+            m_lpd3dTexture->LockRect(0, &srcRect, NULL, D3DLOCK_READONLY))) {
+      D3D11_MAPPED_SUBRESOURCE mapped;
+      if (SUCCEEDED(ms_pD3D11Context->Map((ID3D11Texture2D *)m_pDX11Texture, 0,
+                                          D3D11_MAP_WRITE_DISCARD, 0,
+                                          &mapped))) {
+        const BYTE *pSrc = (const BYTE *)srcRect.pBits;
+        BYTE *pDst = (BYTE *)mapped.pData;
+        UINT rowBytes = m_width * 4; // A8R8G8B8 = 4 bytes per pixel
+        for (int y = 0; y < m_height; ++y) {
+          memcpy(pDst + y * mapped.RowPitch, pSrc + y * srcRect.Pitch,
+                 rowBytes);
+        }
+        ms_pD3D11Context->Unmap((ID3D11Texture2D *)m_pDX11Texture, 0);
+      }
+      m_lpd3dTexture->UnlockRect(0);
+    }
+  }
 }
 
 void CGraphicImageTexture::Initialize() {
@@ -66,8 +89,14 @@ bool CGraphicImageTexture::CreateDeviceObjects() {
         dxgiFmt = DXGI_FORMAT_B4G4R4A4_UNORM;
       else if (m_d3dFmt == D3DFMT_A8)
         dxgiFmt = DXGI_FORMAT_A8_UNORM;
+      ID3D11Texture2D *pDX11Tex = nullptr;
       DX11Tex::CreateDynamicTexture(ms_pD3D11Device, m_width, m_height, dxgiFmt,
-                                    &m_pDX11SRV);
+                                    &m_pDX11SRV, &pDX11Tex);
+      m_pDX11Texture = pDX11Tex;
+
+      // Register in the DX9→DX11 texture registry so StateManager can bind SRV
+      if (m_lpd3dTexture && m_pDX11SRV)
+        RegisterDX11SRV(m_lpd3dTexture, m_pDX11SRV);
     }
   } else {
     TPackFile mappedFile;
@@ -222,7 +251,7 @@ bool CGraphicImageTexture::CreateFromMemoryFile(UINT bufSize,
       D3DXIMAGE_INFO imageInfo;
       if (FAILED(D3DXCreateTextureFromFileInMemoryEx(
               ms_lpd3dDevice, c_pvBuf, bufSize, D3DX_DEFAULT_NONPOW2,
-              D3DX_DEFAULT_NONPOW2, D3DX_DEFAULT, 0, d3dFmt, D3DPOOL_DEFAULT,
+              D3DX_DEFAULT_NONPOW2, D3DX_DEFAULT, 0, d3dFmt, D3DPOOL_MANAGED,
               dwFilter, dwFilter, 0xffff00ff, &imageInfo, NULL,
               &m_lpd3dTexture))) {
         TraceError("CreateFromMemoryFile: Cannot create texture (%s, %u bytes)",
@@ -259,7 +288,7 @@ bool CGraphicImageTexture::CreateFromMemoryFile(UINT bufSize,
           if (SUCCEEDED(D3DXCreateTexture(
                   ms_lpd3dDevice, imageInfo.Width >> uTexBias,
                   imageInfo.Height >> uTexBias, imageInfo.MipLevels, 0, format,
-                  D3DPOOL_DEFAULT, &pkTexDst))) {
+                  D3DPOOL_MANAGED, &pkTexDst))) {
             m_lpd3dTexture = pkTexDst;
             for (int i = 0; i < imageInfo.MipLevels; ++i) {
 
@@ -280,6 +309,52 @@ bool CGraphicImageTexture::CreateFromMemoryFile(UINT bufSize,
           }
         }
       }
+    }
+  }
+
+  // DX11: If we have a DX9 texture but no DX11 SRV, create one from DX9 data
+  if (m_lpd3dTexture && !m_pDX11SRV && ms_pD3D11Device) {
+    D3DLOCKED_RECT lr;
+    D3DSURFACE_DESC desc;
+    m_lpd3dTexture->GetLevelDesc(0, &desc);
+    if (SUCCEEDED(m_lpd3dTexture->LockRect(0, &lr, NULL, D3DLOCK_READONLY))) {
+      DXGI_FORMAT dxgiFmt = DXGI_FORMAT_B8G8R8A8_UNORM;
+      if (desc.Format == D3DFMT_A4R4G4B4)
+        dxgiFmt = DXGI_FORMAT_B4G4R4A4_UNORM;
+      else if (desc.Format == D3DFMT_A1R5G5B5)
+        dxgiFmt = DXGI_FORMAT_B5G5R5A1_UNORM;
+      else if (desc.Format == D3DFMT_R5G6B5)
+        dxgiFmt = DXGI_FORMAT_B5G6R5_UNORM;
+      else if (desc.Format == D3DFMT_X8R8G8B8)
+        dxgiFmt = DXGI_FORMAT_B8G8R8X8_UNORM;
+
+      D3D11_TEXTURE2D_DESC texDesc = {};
+      texDesc.Width = desc.Width;
+      texDesc.Height = desc.Height;
+      texDesc.MipLevels = 1;
+      texDesc.ArraySize = 1;
+      texDesc.Format = dxgiFmt;
+      texDesc.SampleDesc.Count = 1;
+      texDesc.Usage = D3D11_USAGE_DEFAULT;
+      texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+      D3D11_SUBRESOURCE_DATA initData = {};
+      initData.pSysMem = lr.pBits;
+      initData.SysMemPitch = lr.Pitch;
+
+      ID3D11Texture2D *pTex = nullptr;
+      if (SUCCEEDED(
+              ms_pD3D11Device->CreateTexture2D(&texDesc, &initData, &pTex))) {
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = dxgiFmt;
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+        srvDesc.Texture2D.MipLevels = 1;
+        ms_pD3D11Device->CreateShaderResourceView(pTex, &srvDesc, &m_pDX11SRV);
+        pTex->Release();
+      }
+      m_lpd3dTexture->UnlockRect(0);
+      if (m_lpd3dTexture && m_pDX11SRV)
+        RegisterDX11SRV(m_lpd3dTexture, m_pDX11SRV);
     }
   }
 
@@ -370,6 +445,44 @@ bool CGraphicImageTexture::CreateFromDecodedData(
       m_height = decodedImage.height;
       m_lpd3dTexture = texture;
       m_bEmpty = false;
+
+      // DX11: Create SRV from the BGRA data we just wrote
+      if (ms_pD3D11Device && !m_pDX11SRV) {
+        // Re-lock to read the swizzled data for DX11
+        D3DLOCKED_RECT readRect;
+        if (SUCCEEDED(
+                texture->LockRect(0, &readRect, nullptr, D3DLOCK_READONLY))) {
+          D3D11_TEXTURE2D_DESC texDesc = {};
+          texDesc.Width = decodedImage.width;
+          texDesc.Height = decodedImage.height;
+          texDesc.MipLevels = 1;
+          texDesc.ArraySize = 1;
+          texDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+          texDesc.SampleDesc.Count = 1;
+          texDesc.Usage = D3D11_USAGE_DEFAULT;
+          texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+          D3D11_SUBRESOURCE_DATA initData = {};
+          initData.pSysMem = readRect.pBits;
+          initData.SysMemPitch = readRect.Pitch;
+
+          ID3D11Texture2D *pTex = nullptr;
+          if (SUCCEEDED(ms_pD3D11Device->CreateTexture2D(&texDesc, &initData,
+                                                         &pTex))) {
+            D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+            srvDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+            srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+            srvDesc.Texture2D.MipLevels = 1;
+            ms_pD3D11Device->CreateShaderResourceView(pTex, &srvDesc,
+                                                      &m_pDX11SRV);
+            pTex->Release();
+          }
+          texture->UnlockRect(0);
+
+          if (m_lpd3dTexture && m_pDX11SRV)
+            RegisterDX11SRV(m_lpd3dTexture, m_pDX11SRV);
+        }
+      }
     } else {
       texture->Release();
       return false;

@@ -3,7 +3,7 @@
 #include "GrpBase.h"
 #include <unordered_map>
 
-// Forward declaration for DX11
+// Forward declarations for DX11
 struct ID3D11ShaderResourceView;
 
 class CGraphicTexture : public CGraphicBase {
@@ -16,6 +16,7 @@ public:
   void SetTextureStage(int stage) const;
   LPDIRECT3DTEXTURE9 GetD3DTexture() const;
   ID3D11ShaderResourceView *GetDX11SRV() const { return m_pDX11SRV; }
+  void *GetDX11Texture() const { return m_pDX11Texture; }
 
   void DestroyDeviceObjects();
 
@@ -41,5 +42,6 @@ protected:
   int m_height;
 
   LPDIRECT3DTEXTURE9 m_lpd3dTexture;
-  ID3D11ShaderResourceView *m_pDX11SRV; // DX11 shader resource view (Phase 3)
+  ID3D11ShaderResourceView *m_pDX11SRV;
+  void *m_pDX11Texture; // ID3D11Texture2D* stored as void* to avoid header dep
 };

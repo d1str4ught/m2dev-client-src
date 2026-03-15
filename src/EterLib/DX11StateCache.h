@@ -31,7 +31,8 @@ public:
   CDX11StateCache();
   ~CDX11StateCache();
 
-  void Initialize(ID3D11Device *pDevice, ID3D11DeviceContext *pContext);
+  void Initialize(ID3D11Device *pDevice, ID3D11DeviceContext *pContext,
+                  int viewportWidth, int viewportHeight);
   void Shutdown();
 
   // ------ State change notifications (called from CStateManager) ------
@@ -45,6 +46,9 @@ public:
 
   // ------ Apply dirty state before draw calls ------
   void ApplyState();
+
+  // Call at the beginning of each frame to re-bind render targets
+  void ResetFrameState() { m_bRenderTargetBound = false; }
 
 private:
   // Rebuild and apply individual state objects
@@ -66,6 +70,8 @@ private:
 private:
   ID3D11Device *m_pDevice;
   ID3D11DeviceContext *m_pContext;
+  int m_iViewportWidth;
+  int m_iViewportHeight;
 
   // ------ Cached DX11 state objects (released on change or shutdown) ------
   ID3D11DepthStencilState *m_pDepthStencilState;
@@ -107,6 +113,9 @@ private:
   DWORD m_dwAlphaRef;
   DWORD m_dwAlphaFunc;
   DWORD m_dwColorWriteEnable;
+
+  // Cached swap chain/scene render target binding flag
+  bool m_bRenderTargetBound;
 
   // Rasterizer
   DWORD m_dwFillMode;

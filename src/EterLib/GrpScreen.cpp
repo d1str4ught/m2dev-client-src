@@ -1,4 +1,4 @@
-#include "GrpScreen.h"
+﻿#include "GrpScreen.h"
 #include "Camera.h"
 #include "DX11PostProcess.h"
 #include "DX11ShadowMap.h"
@@ -52,8 +52,9 @@ void CScreen::RenderBox3d(float sx, float sy, float sz, float ex, float ey,
       {ex, sy, sz, ms_diffuseColor, 0.0f, 0.0f}, // 1
       {ex, ey, ez, ms_diffuseColor, 0.0f, 0.0f}, // 3
 
-      {sx, ey, ez, ms_diffuseColor, 0.0f, 0.0f},       // 2
-      {ex + 1.0f, ey, ez, ms_diffuseColor, 0.0f, 0.0f} // 3, (x가 1증가된 3)
+      {sx, ey, ez, ms_diffuseColor, 0.0f, 0.0f}, // 2
+      {ex + 1.0f, ey, ez, ms_diffuseColor, 0.0f, 0.0f}
+      // 3, (xê°€ 1ì¦ê°€ëœ 3)
   };
 
   // 2004.11.18.myevan.DrawIndexPrimitiveUP -> DynamicVertexBuffer
@@ -491,11 +492,13 @@ void CScreen::SetCursorPosition(int x, int y, int hres, int vres) {
   ms_vtPickRayOrig.y = matViewInverse._42;
   ms_vtPickRayOrig.z = matViewInverse._43;
 
-  //	// 2003. 9. 9 동현 추가
-  //	// 지형 picking을 위한 뻘짓... ㅡㅡ; 위에 것과 통합 필요...
+  //	// 2003. 9. 9 ë™í˜„ ì¶”ê°€
+  //	// ì§€í˜• pickingì„ ìœ„í•œ ë»˜ì§“...
+  // ã…¡ã…¡; ìœ„ì— ê²ƒê³¼ í†µí•©
+  // í•„ìš”...
   ms_Ray.SetStartPoint(ms_vtPickRayOrig);
   ms_Ray.SetDirection(-ms_vtPickRayDir, 51200.0f);
-  //	// 2003. 9. 9 동현 추가
+  //	// 2003. 9. 9 ë™í˜„ ì¶”ê°€
 }
 
 bool CScreen::GetCursorPosition(float *px, float *py, float *pz) {
@@ -610,16 +613,17 @@ void CScreen::Clear() {
                         ms_clearColor, ms_clearDepth, ms_clearStencil);
 
   // DX11: Clear render target + depth stencil
+  // Clear the scene RT (where draws go), not the swap chain back buffer
   if (ms_pD3D11Context) {
-    if (ms_pRenderTargetView) {
+    ID3D11RenderTargetView *pRTV = ms_pSceneRTV ? ms_pSceneRTV : ms_pRenderTargetView;
+    if (pRTV) {
       float clearColorF[4] = {
           ((ms_clearColor >> 16) & 0xFF) / 255.0f, // R
           ((ms_clearColor >> 8) & 0xFF) / 255.0f,  // G
           ((ms_clearColor >> 0) & 0xFF) / 255.0f,  // B
           ((ms_clearColor >> 24) & 0xFF) / 255.0f  // A
       };
-      ms_pD3D11Context->ClearRenderTargetView(ms_pRenderTargetView,
-                                              clearColorF);
+      ms_pD3D11Context->ClearRenderTargetView(pRTV, clearColorF);
     }
     if (ms_pDepthStencilView)
       ms_pD3D11Context->ClearDepthStencilView(
@@ -692,19 +696,43 @@ bool CScreen::Begin() {
   }
 
   // DX11: Bind scene render target + depth + viewport at frame start
-  if (ms_bDX11PostProcessEnabled && ms_pD3D11Context && ms_pSceneRTV &&
-      ms_pDepthStencilView) {
+  // Always set up DX11 RT/viewport, not just when post-processing is enabled
+  if (ms_pD3D11Context && ms_pSceneRTV && ms_pDepthStencilView) {
     ms_pD3D11Context->OMSetRenderTargets(1, &ms_pSceneRTV,
                                          ms_pDepthStencilView);
-    float clearColor[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+    float clearColor[4] = {((ms_clearColor >> 16) & 0xFF) / 255.0f,
+                           ((ms_clearColor >> 8) & 0xFF) / 255.0f,
+                           ((ms_clearColor >> 0) & 0xFF) / 255.0f,
+                           ((ms_clearColor >> 24) & 0xFF) / 255.0f};
     ms_pD3D11Context->ClearRenderTargetView(ms_pSceneRTV, clearColor);
     ms_pD3D11Context->ClearDepthStencilView(
         ms_pDepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
-    // CRITICAL: DX11 has no default viewport — must set explicitly
+    // CRITICAL: DX11 has no default viewport â€” must set explicitly
+    // Get viewport from DX11 swap chain (NOT DX9 d3dPresentParameter
+    // which is 1x1 from the dummy device)
     D3D11_VIEWPORT vp = {};
-    vp.Width = (FLOAT)ms_d3dPresentParameter.BackBufferWidth;
-    vp.Height = (FLOAT)ms_d3dPresentParameter.BackBufferHeight;
+    DXGI_SWAP_CHAIN_DESC scDesc;
+    if (ms_pSwapChain && SUCCEEDED(ms_pSwapChain->GetDesc(&scDesc))) {
+      vp.Width = (FLOAT)scDesc.BufferDesc.Width;
+      vp.Height = (FLOAT)scDesc.BufferDesc.Height;
+    } else {
+      // Fallback: query from scene RT texture
+      ID3D11Resource *pRes = nullptr;
+      ms_pSceneRTV->GetResource(&pRes);
+      if (pRes) {
+        ID3D11Texture2D *pTex = nullptr;
+        pRes->QueryInterface(__uuidof(ID3D11Texture2D), (void **)&pTex);
+        if (pTex) {
+          D3D11_TEXTURE2D_DESC td;
+          pTex->GetDesc(&td);
+          vp.Width = (FLOAT)td.Width;
+          vp.Height = (FLOAT)td.Height;
+          pTex->Release();
+        }
+        pRes->Release();
+      }
+    }
     vp.MinDepth = 0.0f;
     vp.MaxDepth = 1.0f;
     ms_pD3D11Context->RSSetViewports(1, &vp);
@@ -719,142 +747,37 @@ extern bool g_isBrowserMode;
 extern RECT g_rcBrowser;
 
 void CScreen::Show(HWND hWnd) {
-  assert(ms_lpd3dDevice != NULL);
+  // DX11-only presentation
+  if (!ms_pD3D11Context || !ms_pSwapChain || !ms_pSceneRT)
+    return;
 
-  // DX11: Use scene RT (direct DX11 rendering)
-  bool bDX11Active = ms_bDX11PostProcessEnabled && ms_pPostProcess &&
-                     ms_pPostProcess->IsInitialized() &&
-                     (ms_pSceneSRV || (ms_pSharedTexture && ms_pSharedSRV));
+  // Unbind scene RT before reading it as SRV
+  ID3D11RenderTargetView *nullRTV = nullptr;
+  ms_pD3D11Context->OMSetRenderTargets(1, &nullRTV, nullptr);
 
-  // Debug: Log DX11 post-process status on first frame
-  static bool s_bLoggedOnce = false;
-  if (!s_bLoggedOnce) {
-    s_bLoggedOnce = true;
-    char szDbg[256];
-    sprintf(szDbg,
-            "[DX11] PostProcess=%p Init=%d SceneSRV=%p SharedSRV=%p => "
-            "Active=%d\n",
-            ms_pPostProcess,
-            ms_pPostProcess ? ms_pPostProcess->IsInitialized() : 0,
-            ms_pSceneSRV, ms_pSharedSRV, bDX11Active ? 1 : 0);
-    OutputDebugStringA(szDbg);
-  }
-
-  // DX11: Use native scene RT if available, otherwise fall back to DX9 copy
-  if (bDX11Active) {
-    static int s_showLog = 0;
-    ID3D11ShaderResourceView *pInputSRV = nullptr;
-
-    if (ms_pSceneSRV) {
-      if (s_showLog < 3) {
-        FILE *fp = fopen("dx11_crash.log", "a");
-        if (fp) {
-          fprintf(fp, "SHOW step=1 unbind RT count=%d\n", s_showLog);
-          fflush(fp);
-          fclose(fp);
-        }
-      }
-      // DX11 native: unbind scene RT before reading as SRV
-      ID3D11RenderTargetView *nullRTV = nullptr;
-      ms_pD3D11Context->OMSetRenderTargets(1, &nullRTV, nullptr);
-      pInputSRV = ms_pSceneSRV;
-      if (s_showLog < 3) {
-        FILE *fp = fopen("dx11_crash.log", "a");
-        if (fp) {
-          fprintf(fp, "SHOW step=2 pInputSRV=%p\n", pInputSRV);
-          fflush(fp);
-          fclose(fp);
-        }
-      }
-    } else {
-      // Fallback: Copy DX9 back buffer to shared texture
-      IDirect3DSurface9 *pBackBuffer = nullptr;
-      if (SUCCEEDED(ms_lpd3dDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO,
-                                                  &pBackBuffer))) {
-        D3DSURFACE_DESC bbDesc;
-        pBackBuffer->GetDesc(&bbDesc);
-
-        IDirect3DSurface9 *pSysSurface = nullptr;
-        if (SUCCEEDED(ms_lpd3dDevice->CreateOffscreenPlainSurface(
-                bbDesc.Width, bbDesc.Height, bbDesc.Format, D3DPOOL_SYSTEMMEM,
-                &pSysSurface, nullptr))) {
-          if (SUCCEEDED(ms_lpd3dDevice->GetRenderTargetData(pBackBuffer,
-                                                            pSysSurface))) {
-            D3DLOCKED_RECT lockedRect;
-            if (SUCCEEDED(pSysSurface->LockRect(&lockedRect, nullptr,
-                                                D3DLOCK_READONLY))) {
-              ms_pD3D11Context->UpdateSubresource(ms_pSharedTexture, 0, nullptr,
-                                                  lockedRect.pBits,
-                                                  lockedRect.Pitch, 0);
-              pSysSurface->UnlockRect();
-            }
-          }
-          pSysSurface->Release();
-        }
-        pBackBuffer->Release();
-      }
-      pInputSRV = ms_pSharedSRV;
-    }
-
-    // Present via DX11 post-processing
-    if (pInputSRV) {
-      if (s_showLog < 3) {
-        FILE *fp = fopen("dx11_crash.log", "a");
-        if (fp) {
-          fprintf(fp, "SHOW step=3 ApplyAndPresent SRV=%p\n", pInputSRV);
-          fflush(fp);
-          fclose(fp);
-        }
-      }
-      ms_pPostProcess->ApplyAndPresent(pInputSRV);
-      if (s_showLog < 3) {
-        FILE *fp = fopen("dx11_crash.log", "a");
-        if (fp) {
-          fprintf(fp, "SHOW step=4 DONE\n");
-          fflush(fp);
-          fclose(fp);
-        }
-        s_showLog++;
-      }
-    }
+  if (ms_bDX11PostProcessEnabled && ms_pPostProcess && ms_pSceneSRV) {
+    // Post-process path: bloom + tone-mapping → present
+    ms_pPostProcess->ApplyAndPresent(ms_pSceneSRV);
   } else {
-    // DX9-only present (when DX11 post-processing is not available)
-    if (g_isBrowserMode) {
-      RECT rcTop = {static_cast<long>(0), static_cast<long>(0),
-                    static_cast<long>(ms_d3dPresentParameter.BackBufferWidth),
-                    static_cast<long>(g_rcBrowser.top)};
-      RECT rcBottom = {
-          0, g_rcBrowser.bottom,
-          static_cast<long>(ms_d3dPresentParameter.BackBufferWidth),
-          static_cast<long>(ms_d3dPresentParameter.BackBufferHeight)};
-      RECT rcLeft = {0, g_rcBrowser.top, g_rcBrowser.left, g_rcBrowser.bottom};
-      RECT rcRight = {g_rcBrowser.right, g_rcBrowser.top,
-                      static_cast<long>(ms_d3dPresentParameter.BackBufferWidth),
-                      g_rcBrowser.bottom};
-
-      ms_lpd3dDevice->Present(&rcTop, &rcTop, hWnd, NULL);
-      ms_lpd3dDevice->Present(&rcBottom, &rcBottom, hWnd, NULL);
-      ms_lpd3dDevice->Present(&rcLeft, &rcLeft, hWnd, NULL);
-      ms_lpd3dDevice->Present(&rcRight, &rcRight, hWnd, NULL);
-    } else {
-      HRESULT hr = ms_lpd3dDevice->Present(NULL, NULL, hWnd, NULL);
-      if (D3DERR_DEVICELOST == hr)
-        RestoreDevice();
+    // Direct copy path (no post-FX)
+    ID3D11Texture2D *pBackBuf = nullptr;
+    if (SUCCEEDED(ms_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D),
+                                           (void **)&pBackBuf))) {
+      ms_pD3D11Context->CopyResource(pBackBuf, ms_pSceneRT);
+      pBackBuf->Release();
     }
-
-    if (ms_pSwapChain)
-      ms_pSwapChain->Present(0, 0);
+    ms_pSwapChain->Present(0, 0);
   }
 }
 
 void CScreen::Show(RECT *pSrcRect) {
-  assert(ms_lpd3dDevice != NULL);
-  ms_lpd3dDevice->Present(pSrcRect, NULL, NULL, NULL);
+  if (ms_pSwapChain)
+    ms_pSwapChain->Present(0, 0);
 }
 
 void CScreen::Show(RECT *pSrcRect, HWND hWnd) {
-  assert(ms_lpd3dDevice != NULL);
-  ms_lpd3dDevice->Present(pSrcRect, NULL, hWnd, NULL);
+  if (ms_pSwapChain)
+    ms_pSwapChain->Present(0, 0);
 }
 
 void CScreen::ProjectPosition(float x, float y, float z, float *pfX,

@@ -1,6 +1,6 @@
 #include "DX11StateCache.h"
+#include "GrpBase.h"
 #include "StdAfx.h"
-
 
 #include <d3d11.h>
 
@@ -11,8 +11,8 @@
 CDX11StateCache::CDX11StateCache()
     : m_pDevice(nullptr), m_pContext(nullptr), m_pDepthStencilState(nullptr),
       m_pBlendState(nullptr), m_pRasterizerState(nullptr),
-      m_bDepthStencilDirty(true), m_bBlendDirty(true),
-      m_bRasterizerDirty(true) {
+      m_bDepthStencilDirty(true), m_bBlendDirty(true), m_bRasterizerDirty(true),
+      m_bRenderTargetBound(false) {
   memset(m_pSamplerStates, 0, sizeof(m_pSamplerStates));
   memset(m_bSamplerDirty, 1, sizeof(m_bSamplerDirty)); // all dirty initially
 
@@ -68,14 +68,18 @@ CDX11StateCache::CDX11StateCache()
 CDX11StateCache::~CDX11StateCache() { Shutdown(); }
 
 void CDX11StateCache::Initialize(ID3D11Device *pDevice,
-                                 ID3D11DeviceContext *pContext) {
+                                 ID3D11DeviceContext *pContext,
+                                 int viewportWidth, int viewportHeight) {
   m_pDevice = pDevice;
   m_pContext = pContext;
+  m_iViewportWidth = viewportWidth;
+  m_iViewportHeight = viewportHeight;
 
   // Mark all dirty to force initial state creation
   m_bDepthStencilDirty = true;
   m_bBlendDirty = true;
   m_bRasterizerDirty = true;
+  m_bRenderTargetBound = false;
   for (int i = 0; i < DX11_MAX_SAMPLER_STAGES; i++)
     m_bSamplerDirty[i] = true;
 }
@@ -296,6 +300,45 @@ void CDX11StateCache::OnSamplerStateChanged(DWORD stage,
 void CDX11StateCache::ApplyState() {
   if (!m_pDevice || !m_pContext)
     return;
+
+  // Safety fallback: bind scene render target if CScreen::Begin() hasn't yet.
+  if (!m_bRenderTargetBound) {
+    ID3D11RenderTargetView *pRTV = CGraphicBase::ms_pSceneRTV
+                                       ? CGraphicBase::ms_pSceneRTV
+                                       : CGraphicBase::ms_pRenderTargetView;
+
+    if (pRTV) {
+      m_pContext->OMSetRenderTargets(1, &pRTV,
+                                     CGraphicBase::ms_pDepthStencilView);
+
+      // Derive viewport from the actual render target dimensions
+      ID3D11Resource *pRTResource = nullptr;
+      pRTV->GetResource(&pRTResource);
+      D3D11_VIEWPORT vp = {};
+      if (pRTResource) {
+        ID3D11Texture2D *pRTTex = nullptr;
+        pRTResource->QueryInterface(__uuidof(ID3D11Texture2D),
+                                    (void **)&pRTTex);
+        if (pRTTex) {
+          D3D11_TEXTURE2D_DESC texDesc;
+          pRTTex->GetDesc(&texDesc);
+          vp.Width = (float)texDesc.Width;
+          vp.Height = (float)texDesc.Height;
+          pRTTex->Release();
+        }
+        pRTResource->Release();
+      }
+      if (vp.Width < 2.0f) {
+        vp.Width = 1024.0f;
+        vp.Height = 768.0f;
+      }
+      vp.MinDepth = 0.0f;
+      vp.MaxDepth = 1.0f;
+      m_pContext->RSSetViewports(1, &vp);
+
+      m_bRenderTargetBound = true;
+    }
+  }
 
   if (m_bDepthStencilDirty)
     ApplyDepthStencilState();

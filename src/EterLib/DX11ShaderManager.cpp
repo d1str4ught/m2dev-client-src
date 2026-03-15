@@ -160,6 +160,47 @@ VS_OUTPUT VS_TL(VS_TL_INPUT input)
     return o;
 }
 
+// ====== VS_TL2: Pre-transformed + Diffuse + Specular + 2 TexCoords (terrain STP) ======
+struct VS_TL2_INPUT { float4 Position : POSITION; float4 Color : COLOR0; float4 Specular : COLOR1; float2 TexCoord0 : TEXCOORD0; float2 TexCoord1 : TEXCOORD1; };
+VS_OUTPUT VS_TL2(VS_TL2_INPUT input)
+{
+    VS_OUTPUT o;
+    o.Position = input.Position;
+    o.Color    = input.Color;
+    o.TexCoord = input.TexCoord0;  // Use first texcoord for diffuse sampling
+    o.FogFactor = 1.0f;
+    o.ShadowPos = float4(0, 0, 0, 1);
+    return o;
+}
+
+// ====== VS_PDST: Position + Diffuse + Specular + TexCoord ======
+struct VS_PDST_INPUT { float3 Position : POSITION; float4 Color : COLOR0; float4 Specular : COLOR1; float2 TexCoord : TEXCOORD0; };
+VS_OUTPUT VS_PDST(VS_PDST_INPUT input)
+{
+    VS_OUTPUT o;
+    o.Position = mul(float4(input.Position, 1.0f), matWorldViewProj);
+    o.Color    = input.Color;
+    o.TexCoord = input.TexCoord;
+    o.FogFactor = ComputeFog(input.Position);
+    float4 wPos = mul(float4(input.Position, 1.0f), matWorld);
+    o.ShadowPos = mul(wPos, matLightVP);
+    return o;
+}
+
+// ====== VS_PDST2: Position + Diffuse + Specular + 2 TexCoords ======
+struct VS_PDST2_INPUT { float3 Position : POSITION; float4 Color : COLOR0; float4 Specular : COLOR1; float2 TexCoord0 : TEXCOORD0; float2 TexCoord1 : TEXCOORD1; };
+VS_OUTPUT VS_PDST2(VS_PDST2_INPUT input)
+{
+    VS_OUTPUT o;
+    o.Position = mul(float4(input.Position, 1.0f), matWorldViewProj);
+    o.Color    = input.Color;
+    o.TexCoord = input.TexCoord0;
+    o.FogFactor = ComputeFog(input.Position);
+    float4 wPos = mul(float4(input.Position, 1.0f), matWorld);
+    o.ShadowPos = mul(wPos, matLightVP);
+    return o;
+}
+
 // ---- Shadow sampling helper (2x2 PCF) ----
 float SampleShadow(float4 shadowPos)
 {
@@ -238,12 +279,17 @@ enum EFFPVariant {
   FFP_PD,      // Position + Diffuse
   FFP_PNT,     // Position + Normal + TexCoord
   FFP_TL,      // Pre-transformed (XYZRHW)
+  FFP_TL2,     // Pre-transformed + Diffuse + Specular + 2 TexCoords
+  FFP_PDST,    // Position + Diffuse + Specular + TexCoord
+  FFP_PDST2,   // Position + Diffuse + Specular + 2 TexCoords
   FFP_COUNT
 };
 
-static const char *s_szVSEntryPoints[FFP_COUNT] = {"VS_FFP", "VS_PT", "VS_PD",
-                                                   "VS_PNT", "VS_TL"};
+static const char *s_szVSEntryPoints[FFP_COUNT] = {
+    "VS_FFP", "VS_PT",  "VS_PD",   "VS_PNT",
+    "VS_TL",  "VS_TL2", "VS_PDST", "VS_PDST2"};
 static const char *s_szPSEntryPoints[FFP_COUNT] = {"PS_FFP", "PS_FFP", "PS_PD",
+                                                   "PS_FFP", "PS_FFP", "PS_FFP",
                                                    "PS_FFP", "PS_FFP"};
 
 // ============================================================================
@@ -252,7 +298,7 @@ static const char *s_szPSEntryPoints[FFP_COUNT] = {"PS_FFP", "PS_FFP", "PS_PD",
 
 CDX11ShaderManager::CDX11ShaderManager()
     : m_pDevice(nullptr), m_pContext(nullptr), m_pCBPerFrame(nullptr),
-      m_pCBPerMaterial(nullptr), m_iCurrentVariant(-1) {
+      m_pCBPerMaterial(nullptr), m_pCBShadow(nullptr), m_iCurrentVariant(-1) {
   memset(m_pFFP_VS_Variants, 0, sizeof(m_pFFP_VS_Variants));
   memset(m_pFFP_PS_Variants, 0, sizeof(m_pFFP_PS_Variants));
   memset(m_pFFP_InputLayouts, 0, sizeof(m_pFFP_InputLayouts));
@@ -301,14 +347,37 @@ bool CDX11ShaderManager::Initialize(ID3D11Device *pDevice,
       {"COLOR", 0, DXGI_FORMAT_B8G8R8A8_UNORM, 16},
       {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 20},
   };
+  // TL2 layout (XYZRHW + diffuse + specular + 2 texcoords)
+  LayoutEntry layoutTL2[] = {
+      {"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0},
+      {"COLOR", 0, DXGI_FORMAT_B8G8R8A8_UNORM, 16},
+      {"COLOR", 1, DXGI_FORMAT_B8G8R8A8_UNORM, 20},
+      {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 24},
+      {"TEXCOORD", 1, DXGI_FORMAT_R32G32_FLOAT, 32},
+  };
+  // PDST layout (Position + Diffuse + Specular + TexCoord)
+  LayoutEntry layoutPDST[] = {
+      {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0},
+      {"COLOR", 0, DXGI_FORMAT_B8G8R8A8_UNORM, 12},
+      {"COLOR", 1, DXGI_FORMAT_B8G8R8A8_UNORM, 16},
+      {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 20},
+  };
+  // PDST2 layout (Position + Diffuse + Specular + 2 TexCoords)
+  LayoutEntry layoutPDST2[] = {
+      {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0},
+      {"COLOR", 0, DXGI_FORMAT_B8G8R8A8_UNORM, 12},
+      {"COLOR", 1, DXGI_FORMAT_B8G8R8A8_UNORM, 16},
+      {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 20},
+      {"TEXCOORD", 1, DXGI_FORMAT_R32G32_FLOAT, 28},
+  };
 
   struct VariantDef {
     LayoutEntry *layout;
     UINT layoutCount;
   };
   VariantDef variants[FFP_COUNT] = {
-      {layoutPDT, 3}, {layoutPT, 2}, {layoutPD, 2},
-      {layoutPNT, 3}, {layoutTL, 3},
+      {layoutPDT, 3}, {layoutPT, 2},  {layoutPD, 2},   {layoutPNT, 3},
+      {layoutTL, 3},  {layoutTL2, 5}, {layoutPDST, 4}, {layoutPDST2, 5},
   };
 
   for (int i = 0; i < FFP_COUNT; i++) {
@@ -321,7 +390,7 @@ bool CDX11ShaderManager::Initialize(ID3D11Device *pDevice,
                                   &m_pFFP_VS_Variants[i]);
 
     // Create input layout
-    D3D11_INPUT_ELEMENT_DESC desc[4] = {};
+    D3D11_INPUT_ELEMENT_DESC desc[6] = {};
     for (UINT j = 0; j < variants[i].layoutCount; j++) {
       desc[j].SemanticName = variants[i].layout[j].semantic;
       desc[j].SemanticIndex = variants[i].layout[j].semanticIndex;
@@ -368,6 +437,12 @@ bool CDX11ShaderManager::Initialize(ID3D11Device *pDevice,
   if (FAILED(hr))
     return false;
 
+  // CBShadow (64 bytes: matLightVP)
+  cbDesc.ByteWidth = sizeof(CBShadow);
+  hr = m_pDevice->CreateBuffer(&cbDesc, nullptr, &m_pCBShadow);
+  if (FAILED(hr))
+    return false;
+
   // Set initial material params (alpha test off, fog off)
   CBPerMaterial mat = {};
   mat.fAlphaRef = 0.0f;
@@ -377,6 +452,17 @@ bool CDX11ShaderManager::Initialize(ID3D11Device *pDevice,
   m_pContext->Map(m_pCBPerMaterial, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
   memcpy(mapped.pData, &mat, sizeof(mat));
   m_pContext->Unmap(m_pCBPerMaterial, 0);
+
+  // Initialize shadow cbuffer with identity matLightVP
+  // (ensures SampleShadow returns 1.0 = fully lit when no shadow map is active)
+  CBShadow shadow = {};
+  shadow.matLightVP[0][0] = 1.0f;
+  shadow.matLightVP[1][1] = 1.0f;
+  shadow.matLightVP[2][2] = 1.0f;
+  shadow.matLightVP[3][3] = 1.0f;
+  m_pContext->Map(m_pCBShadow, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+  memcpy(mapped.pData, &shadow, sizeof(shadow));
+  m_pContext->Unmap(m_pCBShadow, 0);
 
   return true;
 }
@@ -407,6 +493,10 @@ void CDX11ShaderManager::Shutdown() {
     m_pCBPerMaterial->Release();
     m_pCBPerMaterial = nullptr;
   }
+  if (m_pCBShadow) {
+    m_pCBShadow->Release();
+    m_pCBShadow = nullptr;
+  }
 
   m_pDevice = nullptr;
   m_pContext = nullptr;
@@ -420,8 +510,18 @@ void CDX11ShaderManager::Shutdown() {
 void CDX11ShaderManager::BindFFP_PDT() { BindForVariant(FFP_PDT); }
 
 void CDX11ShaderManager::BindForFVF(DWORD dwFVF) {
+  bool hasTex2 = ((dwFVF & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT) >= 2;
+  bool hasSpecular = (dwFVF & D3DFVF_SPECULAR) != 0;
+
   if (dwFVF & D3DFVF_XYZRHW) {
-    BindForVariant(FFP_TL);
+    if (hasSpecular && hasTex2)
+      BindForVariant(FFP_TL2);
+    else
+      BindForVariant(FFP_TL);
+  } else if (hasSpecular && hasTex2) {
+    BindForVariant(FFP_PDST2);
+  } else if (hasSpecular) {
+    BindForVariant(FFP_PDST);
   } else if ((dwFVF & D3DFVF_NORMAL) && (dwFVF & D3DFVF_TEX1)) {
     BindForVariant(FFP_PNT);
   } else if ((dwFVF & D3DFVF_DIFFUSE) && (dwFVF & D3DFVF_TEX1)) {
@@ -445,9 +545,9 @@ void CDX11ShaderManager::BindForVariant(int variant) {
   m_pContext->PSSetShader(m_pFFP_PS_Variants[variant], nullptr, 0);
   m_pContext->IASetInputLayout(m_pFFP_InputLayouts[variant]);
 
-  ID3D11Buffer *cbs[] = {m_pCBPerFrame, m_pCBPerMaterial};
-  m_pContext->VSSetConstantBuffers(0, 2, cbs);
-  m_pContext->PSSetConstantBuffers(0, 2, cbs);
+  ID3D11Buffer *cbs[] = {m_pCBPerFrame, m_pCBPerMaterial, m_pCBShadow};
+  m_pContext->VSSetConstantBuffers(0, 3, cbs);
+  m_pContext->PSSetConstantBuffers(0, 3, cbs);
   m_iCurrentVariant = variant;
 }
 

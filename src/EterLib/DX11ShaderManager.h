@@ -34,6 +34,11 @@ struct CBPerMaterial {
   float fPad2;
 };
 
+// Shadow constant buffer (register b2 in shader)
+struct CBShadow {
+  float matLightVP[4][4]; // 64 bytes - light view-projection for shadow mapping
+};
+
 // ============================================================================
 // CDX11ShaderManager
 //
@@ -84,7 +89,7 @@ private:
   ID3D11DeviceContext *m_pContext;
 
   // Variant shader arrays (indexed by EFFPVariant enum in .cpp)
-  static const int MAX_VARIANTS = 5;
+  static const int MAX_VARIANTS = 8;
   ID3D11VertexShader *m_pFFP_VS_Variants[MAX_VARIANTS];
   ID3D11PixelShader *m_pFFP_PS_Variants[MAX_VARIANTS];
   ID3D11InputLayout *m_pFFP_InputLayouts[MAX_VARIANTS];
@@ -98,4 +103,5 @@ private:
   // Constant buffers
   ID3D11Buffer *m_pCBPerFrame;
   ID3D11Buffer *m_pCBPerMaterial;
+  ID3D11Buffer *m_pCBShadow;
 };
