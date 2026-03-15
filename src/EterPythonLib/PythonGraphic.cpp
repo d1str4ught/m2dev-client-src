@@ -2,6 +2,7 @@
 #include "EterLib/StateManager.h"
 #include "EterLib/JpegFile.h"
 #include "PythonGraphic.h"
+#include <d3d11.h>
 #include <utf8.h>
 
 bool g_isScreenShotKey = false;
@@ -112,16 +113,40 @@ void CPythonGraphic::SetViewport(float fx, float fy, float fWidth, float fHeight
 		ms_lpd3dDevice->SetViewport(&ViewPort)
 	))
 	{
-		Tracef("CPythonGraphic::SetViewport(%d, %d, %d, %d) - Error", 
+		Tracef("CPythonGraphic::SetViewport(%d, %d, %d, %d) - Error",
 			ViewPort.X, ViewPort.Y,
 			ViewPort.Width, ViewPort.Height
 		);
+	}
+
+	// DX11: Sync viewport
+	if (ms_pD3D11Context) {
+		D3D11_VIEWPORT vp11 = {};
+		vp11.TopLeftX = fx;
+		vp11.TopLeftY = fy;
+		vp11.Width = fWidth;
+		vp11.Height = fHeight;
+		vp11.MinDepth = 0.0f;
+		vp11.MaxDepth = 1.0f;
+		ms_pD3D11Context->RSSetViewports(1, &vp11);
 	}
 }
 
 void CPythonGraphic::RestoreViewport()
 {
 	ms_lpd3dDevice->SetViewport(&m_backupViewport);
+
+	// DX11: Restore viewport
+	if (ms_pD3D11Context) {
+		D3D11_VIEWPORT vp11 = {};
+		vp11.TopLeftX = (FLOAT)m_backupViewport.X;
+		vp11.TopLeftY = (FLOAT)m_backupViewport.Y;
+		vp11.Width = (FLOAT)m_backupViewport.Width;
+		vp11.Height = (FLOAT)m_backupViewport.Height;
+		vp11.MinDepth = m_backupViewport.MinZ;
+		vp11.MaxDepth = m_backupViewport.MaxZ;
+		ms_pD3D11Context->RSSetViewports(1, &vp11);
+	}
 }
 
 void CPythonGraphic::SetGamma(float fGammaFactor)

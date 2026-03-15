@@ -78,6 +78,7 @@ class CPythonSystem : public CSingleton<CPythonSystem>
 			bool			bAlwaysShowName;
 			bool			bShowDamage;
 			bool			bShowSalesText;
+			bool			bDX11PostProcess;
 		} TConfig;
 
 	public:
@@ -122,6 +123,8 @@ class CPythonSystem : public CSingleton<CPythonSystem>
 		void							SetAlwaysShowNameFlag(int iFlag);
 		void							SetShowDamageFlag(int iFlag);
 		void							SetShowSalesTextFlag(int iFlag);
+		bool							IsDX11PostProcess();
+		void							SetDX11PostProcessFlag(int iFlag);
 
 		// Window
 		void							SaveWindowStatus(int iIndex, int iVisible, int iMinimized, int ix, int iy, int iHeight);

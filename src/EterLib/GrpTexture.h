@@ -1,32 +1,47 @@
 #pragma once
 
 #include "GrpBase.h"
+#include <unordered_map>
 
-class CGraphicTexture : public CGraphicBase
-{
-	public:
-		virtual bool IsEmpty() const;
+// Forward declarations for DX11
+struct ID3D11ShaderResourceView;
 
-		int GetWidth() const;
-		int GetHeight() const;
+class CGraphicTexture : public CGraphicBase {
+public:
+  virtual bool IsEmpty() const;
 
-		void SetTextureStage(int stage) const;
-		LPDIRECT3DTEXTURE9 GetD3DTexture() const;
+  int GetWidth() const;
+  int GetHeight() const;
 
-		void DestroyDeviceObjects();
-		
-	protected:
-		CGraphicTexture();
-		virtual	~CGraphicTexture();
+  void SetTextureStage(int stage) const;
+  LPDIRECT3DTEXTURE9 GetD3DTexture() const;
+  ID3D11ShaderResourceView *GetDX11SRV() const { return m_pDX11SRV; }
+  void *GetDX11Texture() const { return m_pDX11Texture; }
 
-		void Destroy();
-		void Initialize();
+  void DestroyDeviceObjects();
 
-	protected:
-		bool m_bEmpty;
+  // ------ DX11 Texture Registry (static) ------
+  // Maps DX9 texture pointers to their DX11 SRV counterparts
+  static void RegisterDX11SRV(LPDIRECT3DBASETEXTURE9 pDX9Tex,
+                              ID3D11ShaderResourceView *pSRV);
+  static void UnregisterDX11SRV(LPDIRECT3DBASETEXTURE9 pDX9Tex);
+  static ID3D11ShaderResourceView *
+  LookupDX11SRV(LPDIRECT3DBASETEXTURE9 pDX9Tex);
 
-		int m_width;
-		int m_height;
+protected:
+  CGraphicTexture();
+  virtual ~CGraphicTexture();
 
-		LPDIRECT3DTEXTURE9 m_lpd3dTexture;
+  void Destroy();
+  void Initialize();
+
+protected:
+  bool m_bEmpty;
+
+  int m_width;
+  int m_height;
+
+  LPDIRECT3DTEXTURE9 m_lpd3dTexture;
+  ID3D11ShaderResourceView *m_pDX11SRV;
+  void *m_pDX11Texture; // ID3D11Texture2D* stored as void* to avoid header dep
 };

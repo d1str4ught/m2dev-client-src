@@ -1,5 +1,6 @@
 #include "StdAfx.h"
 #include "PythonSystem.h"
+#include "EterLib/GrpBase.h"
 
 PyObject * systemGetWidth(PyObject* poSelf, PyObject* poArgs)
 {
@@ -226,6 +227,23 @@ PyObject * systemIsShowSalesText(PyObject * poSelf, PyObject * poArgs)
 	return Py_BuildValue("i", CPythonSystem::Instance().IsShowSalesText());
 }
 
+PyObject * systemIsDX11PostProcess(PyObject * poSelf, PyObject * poArgs)
+{
+	return Py_BuildValue("i", CPythonSystem::Instance().IsDX11PostProcess());
+}
+
+PyObject * systemSetDX11PostProcessFlag(PyObject * poSelf, PyObject * poArgs)
+{
+	int iFlag;
+	if (!PyTuple_GetInteger(poArgs, 0, &iFlag))
+		return Py_BuildException();
+
+	CPythonSystem::Instance().SetDX11PostProcessFlag(iFlag);
+	CGraphicBase::SetDX11PostProcessEnabled(iFlag == 1);
+
+	return Py_BuildNone();
+}
+
 PyObject * systemSetConfig(PyObject * poSelf, PyObject * poArgs)
 {
 	int res_index;
@@ -444,6 +462,9 @@ void initsystem()
 
 		{ "SetShowSalesTextFlag",		systemSetShowSalesTextFlag,		METH_VARARGS },
 		{ "IsShowSalesText",			systemIsShowSalesText,			METH_VARARGS },
+
+		{ "IsDX11PostProcess",		systemIsDX11PostProcess,		METH_VARARGS },
+		{ "SetDX11PostProcessFlag",	systemSetDX11PostProcessFlag,	METH_VARARGS },
 
 		{ "GetShadowLevel",				systemGetShadowLevel,			METH_VARARGS },
 		{ "SetShadowLevel",				systemSetShadowLevel,			METH_VARARGS },

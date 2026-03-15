@@ -1380,14 +1380,20 @@ namespace UI
 		OnCreateInstance();
 
 		CResource * pResource = CResourceManager::Instance().GetResourcePointer(c_szFileName);
-		if (!pResource)
+		if (!pResource) {
+			TraceError("CImageBox::LoadImage(%s) - GetResourcePointer returned NULL", c_szFileName);
 			return FALSE;
-		if (!pResource->IsType(CGraphicImage::Type()))
+		}
+		if (!pResource->IsType(CGraphicImage::Type())) {
+			TraceError("CImageBox::LoadImage(%s) - IsType(CGraphicImage) failed", c_szFileName);
 			return FALSE;
+		}
 
 		m_pImageInstance->SetImagePointer(static_cast<CGraphicImage*>(pResource));
-		if (m_pImageInstance->IsEmpty())
+		if (m_pImageInstance->IsEmpty()) {
+			TraceError("CImageBox::LoadImage(%s) - image is empty after SetImagePointer", c_szFileName);
 			return FALSE;
+		}
 
 		SetSize(m_pImageInstance->GetWidth(), m_pImageInstance->GetHeight());
 		UpdateRect();
