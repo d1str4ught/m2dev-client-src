@@ -691,9 +691,10 @@ void CSlotWindow::RefreshSlot()
 	OnRefreshSlot();
 
 	// NOTE : Refresh 될때 ToolTip 도 갱신 합니다 - [levites]
-	if (IsRendering())
+	if (IsRendering() && UI::CWindowManager::Instance().GetPointWindow() == this)
 	{
 		TSlot * pSlot;
+
 		if (GetPickedSlotPointer(&pSlot))
 		{
 			OnOverOutItem();

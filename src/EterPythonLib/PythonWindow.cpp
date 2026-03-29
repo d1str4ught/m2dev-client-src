@@ -1902,6 +1902,7 @@ namespace UI
 	void CButton::OnUpdate()
 	{
 	}
+
 	void CButton::OnRender()
 	{
 		if (!IsShow())
@@ -1910,7 +1911,7 @@ namespace UI
 		if (m_pcurVisual)
 		{
 			if (m_isFlash)
-			if (!IsIn())
+			if (!IsIn() || this != UI::CWindowManager::Instance().GetPointWindow())
 			if (int(timeGetTime() / 500)%2)
 			{
 				return;
