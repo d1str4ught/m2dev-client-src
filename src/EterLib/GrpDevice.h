@@ -38,6 +38,9 @@ public:
 
 	void			Destroy();
 	int				Create(HWND hWnd, int hres, int vres, bool Windowed = true, int bit = 32, int ReflashRate = 0);
+#ifdef ENABLE_WINDOW_RESIZE
+	void			SetNewSize(int width, int height);
+#endif
 
 	EDeviceState	GetDeviceState();
 	bool			Reset();

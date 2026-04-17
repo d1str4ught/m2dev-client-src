@@ -52,6 +52,9 @@ m_IsMovingMainWindow(false)
 
 	ms_pInstance = this;
 	m_isWindowFullScreenEnable = FALSE;
+#ifdef ENABLE_WINDOW_RESIZE
+	m_isResizing = false;
+#endif
 
 	m_v3CenterPosition = D3DXVECTOR3(0.0f, 0.0f, 0.0f);
 	m_dwStartLocalTime = ELTimer_GetMSec();
@@ -591,6 +594,13 @@ int CPythonApplication::CheckDeviceState()
 	return DEVICE_STATE_OK;
 }
 
+#ifdef ENABLE_WINDOW_RESIZE
+void CPythonApplication::ChangeDeviceSize(int width, int height)
+{
+	m_grpDevice.SetNewSize(width, height);
+}
+#endif
+
 bool CPythonApplication::CreateDevice(int width, int height, int Windowed, int bit, int frequency)
 {
 	int iRet;
@@ -776,7 +786,11 @@ bool LoadLocaleData(const char* localePath)
 unsigned __GetWindowMode(bool windowed)
 {
 	if (windowed)
+#ifdef ENABLE_WINDOW_RESIZE
+		return WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_TILEDWINDOW;
+#else
 		return WS_OVERLAPPED | WS_CAPTION |   WS_SYSMENU | WS_MINIMIZEBOX;
+#endif
 
 	return WS_POPUP;
 }

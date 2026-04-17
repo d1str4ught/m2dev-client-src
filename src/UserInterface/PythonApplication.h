@@ -299,6 +299,9 @@ class CPythonApplication : public CMSApplication, public CInputKeyboard, public 
 		void OnIMEKeyDown(int iIndex);
 
 		int CheckDeviceState();
+#ifdef ENABLE_WINDOW_RESIZE
+		void ChangeDeviceSize(int width, int height);
+#endif
 
 		BOOL __IsContinuousChangeTypeCursor(int iCursorNum);
 
@@ -432,6 +435,9 @@ class CPythonApplication : public CMSApplication, public CInputKeyboard, public 
 		bool						m_isMinimizedWnd;
 		bool						m_isActivateWnd;
 		BOOL						m_isWindowFullScreenEnable;
+#ifdef ENABLE_WINDOW_RESIZE
+		bool						m_isResizing;
+#endif
 
 		DWORD						m_dwStickyKeysFlag;
 		int							m_iForceSightRange;

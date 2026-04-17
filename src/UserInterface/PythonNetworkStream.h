@@ -129,6 +129,9 @@ class CPythonNetworkStream : public CNetworkStream, public CSingleton<CPythonNet
 		// END_OF_SUPPORT_BGM
 
 		bool IsSelectedEmpire();
+#ifdef ENABLE_WINDOW_RESIZE
+		void ResizeUI();
+#endif
 
 		void ToggleGameDebugInfo();
 

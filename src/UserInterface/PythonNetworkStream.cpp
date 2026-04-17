@@ -199,6 +199,16 @@ bool CPythonNetworkStream::IsSelectedEmpire()
 	return false;
 }
 
+#ifdef ENABLE_WINDOW_RESIZE
+void CPythonNetworkStream::ResizeUI()
+{
+	if ("Game" != m_strPhase)
+		return;
+
+	PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "BINARY_UpdateUI", Py_BuildValue("()"));
+}
+#endif
+
 UINT CPythonNetworkStream::GetAccountCharacterSlotDatau(UINT iSlot, UINT eType)
 {
 	if (iSlot >= PLAYER_PER_ACCOUNT4)

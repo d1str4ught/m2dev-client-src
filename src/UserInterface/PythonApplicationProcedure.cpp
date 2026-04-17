@@ -229,10 +229,18 @@ LRESULT CPythonApplication::WindowProcedure(HWND hWnd, UINT uiMsg, WPARAM wParam
 				RECT rcWnd; 
 				GetClientRect(&rcWnd); 
 				
+#ifdef ENABLE_WINDOW_RESIZE
+				m_isResizing = false;
+				UINT uWidth = rcWnd.right - rcWnd.left;
+				UINT uHeight = rcWnd.bottom - rcWnd.top;
+				m_grpDevice.ResizeBackBuffer(uWidth, uHeight);
+				OnSizeChange(uWidth, uHeight);
+#else
 				UINT uWidth=rcWnd.right-rcWnd.left; 
 				UINT uHeight=rcWnd.bottom-rcWnd.left; 
 				m_grpDevice.ResizeBackBuffer(uWidth, uHeight);				
 				OnSizeChange(short(LOWORD(lParam)), short(HIWORD(lParam)));
+#endif
 			}
 			break; 
 		case WM_NCLBUTTONDOWN:
@@ -240,6 +248,8 @@ LRESULT CPythonApplication::WindowProcedure(HWND hWnd, UINT uiMsg, WPARAM wParam
 				switch (wParam)
 				{
 				case HTMAXBUTTON:
+					ShowWindow(hWnd, IsZoomed(hWnd) ? SW_RESTORE : SW_MAXIMIZE);
+					return 0;
 				case HTSYSMENU:
 					return 0;
 				case HTMINBUTTON:
@@ -274,6 +284,22 @@ LRESULT CPythonApplication::WindowProcedure(HWND hWnd, UINT uiMsg, WPARAM wParam
 			if (wParam == SC_KEYMENU)
 				return 0;
 			break;
+#ifdef ENABLE_WINDOW_RESIZE
+		case WM_ENTERSIZEMOVE:
+			m_isResizing = true;
+			break;
+
+		case WM_GETMINMAXINFO:
+		{
+			MINMAXINFO* pMMI = (MINMAXINFO*)lParam;
+			RECT rcMinClient = { 0, 0, 800, 600 };
+			AdjustWindowRectEx(&rcMinClient, GetWindowStyle(m_hWnd), GetMenu(m_hWnd) != NULL, GetWindowExStyle(m_hWnd));
+			pMMI->ptMinTrackSize.x = rcMinClient.right - rcMinClient.left;
+			pMMI->ptMinTrackSize.y = rcMinClient.bottom - rcMinClient.top;
+			break;
+		}
+#endif
+
 		case WM_SYSKEYDOWN:
 			switch (LOWORD(wParam))
 			{
@@ -294,7 +320,11 @@ LRESULT CPythonApplication::WindowProcedure(HWND hWnd, UINT uiMsg, WPARAM wParam
 			break;
 
 		case WM_SETCURSOR:
+#ifdef ENABLE_WINDOW_RESIZE
+			if (LOWORD(lParam) == HTCLIENT && IsActive())
+#else
 			if (IsActive())
+#endif
 			{
 				if (m_bCursorVisible && CURSOR_MODE_HARDWARE == m_iCursorMode)
 				{

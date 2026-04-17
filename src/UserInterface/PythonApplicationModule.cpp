@@ -1460,6 +1460,11 @@ void initapp()
 	PyModule_AddIntConstant(poModule, "CAMERA_TO_POSITIVE",		CPythonApplication::CAMERA_TO_POSITIVE);
 	PyModule_AddIntConstant(poModule, "CAMERA_TO_NEGATIVE",		CPythonApplication::CAMERA_TO_NEGITIVE);
 	PyModule_AddIntConstant(poModule, "CAMERA_STOP",			CPythonApplication::CAMERA_STOP);
+#ifdef ENABLE_WINDOW_RESIZE
+	PyModule_AddIntConstant(poModule, "ENABLE_WINDOW_RESIZE", 1);
+#else
+	PyModule_AddIntConstant(poModule, "ENABLE_WINDOW_RESIZE", 0);
+#endif
 
 #ifdef ENABLE_COSTUME_SYSTEM
 	PyModule_AddIntConstant(poModule, "ENABLE_COSTUME_SYSTEM",	1);
