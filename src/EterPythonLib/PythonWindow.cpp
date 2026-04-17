@@ -295,6 +295,29 @@ namespace UI
 		PyCallClassMemberFunc(m_poHandler, "OnRender", BuildEmptyTuple());
 	}
 
+#ifdef ENABLE_WINDOW_RESIZE
+	void CWindow::Resize(CWindow* rootWindow)
+	{
+		OnResize();
+
+		m_isUpdatingChildren = TRUE;
+
+		for (auto& Child : m_pChildList)
+			Child->Resize(rootWindow);
+
+		m_isUpdatingChildren = FALSE;
+	}
+
+	void CWindow::OnResize()
+	{
+		if (!m_poHandler)
+			return;
+
+		static PyObject* poFuncName_OnUpdate = PyString_InternFromString("OnResize");
+		PyCallClassMemberFunc_ByPyString(m_poHandler, poFuncName_OnUpdate, BuildEmptyTuple());
+		UpdateRect();
+	}
+#endif
 	void CWindow::SetName(const char * c_szName)
 	{
 		m_strName = c_szName;

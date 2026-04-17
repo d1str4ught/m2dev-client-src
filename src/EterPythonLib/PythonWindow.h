@@ -52,6 +52,11 @@ namespace UI
 			void			DestroyHandle();
 			void			Update();
 			void			Render();
+#ifdef ENABLE_WINDOW_RESIZE
+			void			Resize(CWindow* rootWindow);
+#endif
+
+
 
 			void			SetName(const char * c_szName);
 			const char *	GetName()		{ return m_strName.c_str(); }
@@ -109,6 +114,9 @@ namespace UI
 
 			virtual void	OnRender();
 			virtual void	OnUpdate();
+#ifdef ENABLE_WINDOW_RESIZE
+			virtual void	OnResize();
+#endif
 			virtual void	OnChangePosition(){}
 
 			virtual void	OnSetFocus();

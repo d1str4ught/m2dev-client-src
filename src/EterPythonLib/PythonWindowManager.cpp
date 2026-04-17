@@ -739,6 +739,14 @@ namespace UI
 		m_pRootWindow->Render();
 	}
 
+#ifdef ENABLE_WINDOW_RESIZE
+	void CWindowManager::Resize(int width, int height)
+	{
+		SetResolution(width, height);
+		SetScreenSize(width, height);
+		m_pRootWindow->Resize(m_pRootWindow);
+	}
+#endif
 	CWindow * CWindowManager::__PickWindow(long x, long y)
 	{
 		if (m_pLockWindow)

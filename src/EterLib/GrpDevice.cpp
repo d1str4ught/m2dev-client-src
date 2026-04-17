@@ -309,6 +309,15 @@ DWORD GetMaxTextureHeight()
 	return s_MaxTextureHeight;
 }
 
+#ifdef ENABLE_WINDOW_RESIZE
+void CGraphicDevice::SetNewSize(int width, int height)
+{
+	ms_iWidth = width;
+	ms_iHeight = height;
+
+	SetViewport(0.0f, 0.0f, (float)width, (float)height, 0, 1);
+}
+#endif
 int CGraphicDevice::Create(HWND hWnd, int iHres, int iVres, bool Windowed, int /*iBit*/, int iReflashRate)
 {
 	int iRet = CREATE_OK;

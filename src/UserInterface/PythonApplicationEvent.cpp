@@ -25,7 +25,24 @@ void CPythonApplication::OnUIRender()
 }
 
 void CPythonApplication::OnSizeChange(int width, int height)
-{	
+{
+#ifdef ENABLE_WINDOW_RESIZE
+	if (width <= 0 || height <= 0)
+		return;
+
+	if (m_dwWidth != width || m_dwHeight != height)
+	{
+		m_dwWidth = width;
+		m_dwHeight = height;
+
+		SetRect(&m_rect, 0, 0, width, height);
+		AdjustWindowRectEx(&m_rect, GetWindowStyle(m_hWnd), GetMenu(m_hWnd) != NULL, GetWindowExStyle(m_hWnd));
+
+		ChangeDeviceSize(width, height);
+		UI::CWindowManager::Instance().Resize(width, height);
+		CPythonNetworkStream::Instance().ResizeUI();
+	}
+#endif
 }
 
 void CPythonApplication::OnMouseMiddleButtonDown(int x, int y)

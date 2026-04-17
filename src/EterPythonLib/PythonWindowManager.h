@@ -112,6 +112,9 @@ namespace UI
 
 			void		Update();
 			void		Render();
+#ifdef ENABLE_WINDOW_RESIZE
+			void		Resize(int width, int height);
+#endif
 
 			void		RunMouseMove(long x, long y);
 			void		RunMouseLeftButtonDown(long x, long y);
